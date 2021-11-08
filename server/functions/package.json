@@ -14,8 +14,10 @@
   },
   "main": "lib/index.js",
   "dependencies": {
+    "crypto": "^1.0.1",
     "firebase-admin": "^9.8.0",
-    "firebase-functions": "^3.14.1"
+    "firebase-functions": "^3.14.1",
+    "square": "^15.0.0"
   },
   "devDependencies": {
     "@types/uuid": "^8.3.1",
