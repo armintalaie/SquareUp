@@ -1,14 +1,13 @@
 import "./App.css";
-import Home from "./pages/home";
-import Button from "@mui/material/Button";
-import Setup from "./pages/setup";
 import { createTheme, ThemeProvider } from "@mui/material";
 import Typography from "@mui/material/Typography";
 import "@fontsource/roboto";
+import { BrowserRouter, Route, Routes } from "react-router-dom";
+import Setup from "./routes/setup";
 
 const font = "Poppins";
 
-const theme = createTheme({
+export const theme = createTheme({
   typography: {
     fontFamily: [font].join(","),
     h1: {
@@ -18,6 +17,8 @@ const theme = createTheme({
       marginBottom: 50,
       fontWeight: "bold",
       fontSize: 30,
+      width: "100%",
+      textAlign: "center",
     },
     h2: {
       padding: 2,
@@ -29,16 +30,22 @@ const theme = createTheme({
   palette: {
     primary: { main: "#1789FC" },
   },
+  root: {
+    backgroundColor: "red",
+  },
 });
 
 function App() {
   return (
-    <ThemeProvider theme={theme}>
-      <div className="App">
-        <Setup />
-        <Home></Home>
-      </div>
-    </ThemeProvider>
+    <div className="App">
+      <ThemeProvider theme={theme}>
+        <BrowserRouter>
+          <Routes>
+            <Route path="/setup" element={<Setup />} />
+          </Routes>
+        </BrowserRouter>
+      </ThemeProvider>
+    </div>
   );
 }
 
