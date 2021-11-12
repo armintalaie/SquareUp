@@ -1,92 +1,53 @@
-import { Button, Paper, Container, Box, Typography } from "@mui/material";
+import { Paper, Container, Box, Typography, Stack } from "@mui/material";
 import { ActionButton, FieldForm } from "../theme";
 import { useState } from "react";
 import { theme } from "../App";
+import * as Constants from "../constants/URL";
+import { useNavigate } from "react-router";
 
 export default function Setup() {
+  const navigate = useNavigate();
   const [form, setForm] = useState("");
-  const [accessToken, setaccessToken] = useState("");
-  const [env, setEnv] = useState("sandbox");
-  const [authStatus, setAuthStatus] = useState(false);
+  const CHOICES = { UNDECLARED: "undeclared", CREATE: "create", JOIN: "join" };
+  const [choice, setChoice] = useState(CHOICES.UNDECLARED);
 
   const onTextChange = (e) => {
     setForm(e.target.value);
   };
 
-  function triggerPartners(type) {
-    if (type === "Create") {
-      alert(form);
-    } else {
+  async function joinProgram() {
+    //TODO: join program
+  }
+
+  async function createProgram() {
+    //TODO: create program
+  }
+
+  async function triggerPartners() {
+    console.log(`triggerPartners via ${choice}`);
+    switch (choice) {
+      case CHOICES.CREATE:
+        createProgram().then((res) => {
+          navigate("/dashboard");
+        });
+        return;
+      case CHOICES.JOIN:
+        joinProgram().then((res) => {
+          navigate("/dashboard");
+        });
+        return;
+      default:
+        console.error(
+          "Shoould not attempt to trigger program call without specified action"
+        );
+        return;
     }
   }
 
-  function storeInfo() {
-    setAuthStatus(true);
-  }
-  return (
-    <div>
-      <Container maxWidth="lg" className={theme.root}>
-        <Typography variant="h1">Square Partners Program</Typography>
-
-        <h4>{form}</h4>
-        <Container maxWidth="md">
-          <Paper elevation={2}>
-            <Box m={3} p={5} textAlign={"left"}>
-              <h4>
-                Partner with other Square stores to take your loyalty programs
-                to a new level
-              </h4>
-              <h4>
-                Give your loyal customers more options by expanding your loyalty
-                program to include more partenring stores
-              </h4>
-            </Box>
-          </Paper>
-
-          <Box m={1} p={1}>
-            <Typography variant="h2" style={{ textAlign: "left" }}>
-              Enter your account info
-            </Typography>
-            <Box
-              display="flex"
-              justify="flex-start"
-              alignItems="flex-start"
-              flexDirection="row"
-            >
-              <FieldForm
-                disabled={authStatus}
-                color="secondary"
-                id="outlined-basic"
-                label="Access Token"
-                variant="outlined"
-                fullWidth
-                onChange={(e) => {
-                  setaccessToken(e.target.value);
-                }}
-                value={accessToken}
-              />
-              <FieldForm
-                disabled={authStatus}
-                color="secondary"
-                id="outlined-basic"
-                label="Environment"
-                variant="outlined"
-                fullWidth
-                onChange={(e) => {
-                  setEnv(e.target.value);
-                }}
-                value={env}
-              />
-              <ActionButton
-                disabled={authStatus}
-                variant="contained"
-                onClick={() => storeInfo()}
-              >
-                Authorize access
-              </ActionButton>
-            </Box>
-          </Box>
-
+  function setupCondition() {
+    switch (choice) {
+      case CHOICES.CREATE:
+        return (
           <Box m={1} p={1}>
             <Typography variant="h2" style={{ textAlign: "left" }}>
               Create A Partner Loyalty Program
@@ -98,7 +59,6 @@ export default function Setup() {
               flexDirection="row"
             >
               <FieldForm
-                color="secondary"
                 id="outlined-basic"
                 label="Program Name"
                 variant="outlined"
@@ -108,12 +68,15 @@ export default function Setup() {
               />
               <ActionButton
                 variant="contained"
-                onClick={() => triggerPartners("Create")}
+                onClick={() => triggerPartners()}
               >
                 Create
               </ActionButton>
             </Box>
           </Box>
+        );
+      case CHOICES.JOIN:
+        return (
           <Box m={1} p={1}>
             <Typography variant="h2" style={{ textAlign: "left" }}>
               Join A Partner Loyalty Program
@@ -128,13 +91,75 @@ export default function Setup() {
                 id="outlined-basic"
                 label="Program ID"
                 variant="outlined"
-                color="secondary"
                 fullWidth
               />
 
-              <ActionButton variant="contained">Join</ActionButton>
+              <ActionButton
+                variant="contained"
+                onClick={() => triggerPartners()}
+              >
+                Join
+              </ActionButton>
             </Box>
           </Box>
+        );
+      default:
+        return (
+          <Container maxWidth="md" m={1} p={1} sx={{ mt: 4 }}>
+            <Typography variant="h6">
+              Do you want to create a joint partner loyalty program or join an
+              exisiting one
+            </Typography>
+
+            <ActionButton
+              variant="contained"
+              onClick={() => setChoice(CHOICES.CREATE)}
+            >
+              Create
+            </ActionButton>
+            <ActionButton
+              variant="contained"
+              onClick={() => setChoice(CHOICES.JOIN)}
+            >
+              Join
+            </ActionButton>
+          </Container>
+        );
+    }
+  }
+
+  return (
+    <div>
+      <Container maxWidth="lg" className={theme.root}>
+        <Typography variant="h1">Square Partners Program</Typography>
+
+        <h4>{form}</h4>
+        <Container maxWidth="md">
+          <Stack direction="row">
+            <Paper elevation={1} sx={{ m: 2, p: 3, ml: 0, bgcolor: "#F8F4DD" }}>
+              <Box m={3} ml={0} mr={0} p={1} textAlign={"left"}>
+                <Typography variant="h3">How it works</Typography>
+
+                <Typography variant="h5">
+                  {" "}
+                  Partner with other Square stores to take your loyalty programs
+                  to a new leveleewng;lwgmnw;lgnw;lkgn;
+                </Typography>
+              </Box>
+            </Paper>
+            <Paper elevation={1} sx={{ m: 2, p: 3, mr: 0, bgcolor: "#F8F4DD" }}>
+              <Box m={3} ml={0} mr={0} p={1} textAlign={"left"}>
+                <Typography variant="h3">How it works</Typography>
+
+                <Typography variant="h5">
+                  {" "}
+                  Partner with other Square stores to take your loyalty programs
+                  to a new level
+                </Typography>
+              </Box>
+            </Paper>
+          </Stack>
+          {setupCondition()}
         </Container>
       </Container>
     </div>
