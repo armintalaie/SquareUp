@@ -11,7 +11,7 @@ export default function Tile(props) {
         justifyContent="space-between"
         sx={{ width: "100%", height: "100%", p: 0, m: 0 }}
       >
-        <Typography variant="h6" sx={{}}>
+        <Typography variant="h6" sx={{ fontSize: 15 }}>
           {title}
         </Typography>
 

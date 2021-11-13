@@ -4,6 +4,7 @@ import { useState } from "react";
 import { theme } from "../App";
 import * as Constants from "../constants/URL";
 import { useNavigate, Link } from "react-router-dom";
+import { Client } from "square";
 export default function Setup() {
   const [form, setForm] = useState("");
   const [accessToken, setaccessToken] = useState("");
@@ -29,6 +30,8 @@ export default function Setup() {
   };
 
   async function authorize() {
+    const client = new Client();
+
     // TODO: send request
     // if (!authStatus) {
     //   routeChange();
