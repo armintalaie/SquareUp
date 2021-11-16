@@ -1,15 +1,27 @@
 import { Paper, Container, Box, Typography, Stack } from "@mui/material";
 import { ActionButton } from "../theme";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { theme } from "../App";
 import * as Constants from "../constants/URL";
-import { useNavigate, Link } from "react-router-dom";
+import { useNavigate, Link, useLocation } from "react-router-dom";
 import { Client } from "square";
-export default function Setup() {
+
+export default function Setup(props) {
+  const navigate = useNavigate();
+  const search = useLocation().search;
+  const name = new URLSearchParams(search).get("code");
+
+  let token = "ss";
+
+  useEffect(() => {
+    if (name) {
+      authorize();
+    }
+  }, []);
+
   const [form, setForm] = useState("");
-  const [accessToken, setaccessToken] = useState("");
   // const [env, setEnv] = useState("sandbox");
-  const [authStatus, setAuthStatus] = useState(false);
+
   const scope = [
     "CUSTOMERS_WRITE",
     "CUSTOMERS_READ",
@@ -18,36 +30,37 @@ export default function Setup() {
     "LOYALTY_WRITE",
     "LOYALTY_READ",
   ];
+  const CLIENT_ID_2 = "sandbox-sq0idb-VJnyyzDH0JqdQMHHRvtZKQ";
   const authURL =
-    "https://connect.squareup.com/oauth2/authorize?client_id=sq0idp-gmMyNcJXp6Zhwkc342U_6Q&scope=" +
+    "https://connect.squareupsandbox.com/oauth2/authorize?client_id=" +
+    CLIENT_ID_2 +
+    "&scope=" +
     scope.join("+") +
     "&session=False&state=82201dd8d83d23cc8a48caf52b";
-  const navigate = useNavigate();
-
-  const routeChange = () => {
-    let path = `setup`;
-    navigate(path);
-  };
 
   async function authorize() {
-    const client = new Client();
+    //const client = new Client();
 
-    // TODO: send request
-    // if (!authStatus) {
-    //   routeChange();
-    // } else {
-    //   alert("something went wrong try again plase");
-    // }
+    try {
+      const resp = await fetch(
+        "https://us-central1-square-4797a.cloudfunctions.net/authorize/?code=" +
+          name
+      );
+      const result = await resp.json();
+      console.log(result);
+      if (resp.status === 200) {
+        token = result.token;
+        localStorage.setItem("token", token);
+        navigate("setup");
+        return true;
+      }
+
+      return false;
+    } catch (e) {
+      console.log(e);
+    }
   }
 
-  //   async function storeInfo() {
-  //     const requestOptions = {
-  //       method: "POST",
-  //       headers: { "Content-Type": "application/json" },
-  //       body: JSON.stringify({ accessToken: accessToken }),
-  //     };
-  //     const res = await fetch(Constants.API.SERVER_URL, requestOptions);
-  //     setAuthStatus(true);
   //   }
   return (
     <div>
@@ -109,7 +122,7 @@ export default function Setup() {
             sx={{ p: 2, pl: 4, pr: 4, fontSize: 18, m: 4 }}
           >
             Integrate with Square{" "}
-          </ActionButton>{" "}
+          </ActionButton>
         </a>
       </Container>{" "}
     </div>
