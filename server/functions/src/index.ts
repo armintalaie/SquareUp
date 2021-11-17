@@ -2,12 +2,8 @@ import * as functions from "firebase-functions";
 import { v4 as uuidv4 } from 'uuid';
 import * as crypto from "crypto";
 import { Client, Environment } from 'square';
-// // Start writing Firebase Functions
-// // https://firebase.google.com/docs/functions/typescript
-//const META = "meta";
-//const APPLICATION_LINK = "http://localhost:3000";
-// const CLIENT_ID = "sq0idp-gmMyNcJXp6Zhwkc342U_6Q";
-// const CLIENTT_SECRET = "sq0csp-Eb_8ixEcxs4Wepv8EzcuRG3FsWauYHs4MU6F3RGTG4A";
+import { ClientDoc, ClientInfo, ProgramInfo, StoreMap } from "./model";
+
 const CLIENT_ID_2 = "sandbox-sq0idb-VJnyyzDH0JqdQMHHRvtZKQ";
 const CLIENTT_SECRET_2 = "sandbox-sq0csb-aVfFdHjmx1GZPOzE3mZ9aeW91jqaQUE6vC7s4gLD3q8";
 const admin = require('firebase-admin');
@@ -26,6 +22,8 @@ function isFromSquare(NOTIFICATION_URL, request, sigKey) {
   return request.get("X-Square-Signature") === hash;
 }
 
+
+// TODO: update
 exports.createPartnerProgram = functions.https.onRequest(async (req, res) => {
 
   try {
@@ -47,14 +45,16 @@ exports.createPartnerProgram = functions.https.onRequest(async (req, res) => {
       res.set({ 'Access-Control-Allow-Origin': '*' }).status(200).json({ program: document.programName });
       
     } else {
-      await admin.firestore().collection(META).doc(storeId).set({storeName: storeName, programId: newProgramId});
-      await admin.firestore().collection(newProgramId).doc(storeId).set({ storeId: storeId, storeName: storeName, token: req.query.token  })
-      await admin.firestore().collection(newProgramId).doc(META).set({
-        programName: req.query.program,
-        stores: [storeName]
-      });
-      console.log(req.query.program);
-      res.set({ 'Access-Control-Allow-Origin': '*' }).status(200).json({ program:  req.query.program, stores: [storeName], partnerid: newProgramId});
+      checkIfLoyaltyIsActive();
+      const newClient: ClientInfo = { programId: newProgramId, storeName: storeName, isActive: true, storeId: storeId};
+      const clientDoc: ClientDoc = { storeName: newClient.storeName, storeId: newClient.storeId, storeToken: req.query.token as string, pointsRecieved: 0, pointsRedeemed: 0 }
+      let storeMap: StoreMap = {};
+      storeMap[newClient.storeId] = false;
+      const newProgram: ProgramInfo = { stores: [newClient.storeName], storeActivities: [storeMap], storeCount: 1, programName: req.query.program as string, id: newClient.programId};
+      await admin.firestore().collection(META).doc(newClient.storeId).set(newClient);
+      await admin.firestore().collection(newClient.programId).doc(newClient.storeId).set(clientDoc);
+      await admin.firestore().collection(newClient.programId).doc(META).set(newProgram);
+      res.set({ 'Access-Control-Allow-Origin': '*' }).status(200).json({ program:  newProgram.programName, stores: newProgram.stores, partnerid: newProgram.id});
     };
   
    
@@ -65,6 +65,8 @@ exports.createPartnerProgram = functions.https.onRequest(async (req, res) => {
 
 });
 
+
+// TODO: update
 exports.joinPartnerProgram = functions.https.onRequest(async (req, res) => {
   try {
     const ProgramId = req.query.program as string;
@@ -76,6 +78,8 @@ exports.joinPartnerProgram = functions.https.onRequest(async (req, res) => {
     const storeId = merchant.result.merchant!.id as string;
     const storeName = merchant.result.merchant!.businessName as string;
 
+    
+
     const refClient = await checkForExisitingClients(storeId);
 
     if (refClient.exists) {
@@ -84,16 +88,24 @@ exports.joinPartnerProgram = functions.https.onRequest(async (req, res) => {
       res.set({ 'Access-Control-Allow-Origin': '*' }).status(200).json({ program: document.programName });
       
     } else {
-      await admin.firestore().collection(META).doc(storeId).set({storeName: storeName, programId: ProgramId});
-      await admin.firestore().collection(ProgramId).doc(storeId).set({ storeId: storeId, storeName: storeName , token: req.query.token  })
-      const doc = await admin.firestore().collection(ProgramId).doc(META).get()
-      let stores: string[] =doc.data().stores;
-      stores.push(storeName)
-      await admin.firestore().collection(ProgramId).doc(META).set({
+      const newClient: ClientInfo = { programId: ProgramId, storeName: storeName, isActive: true, storeId: storeId};
+      const clientDoc: ClientDoc = { storeName: newClient.storeName, storeId: newClient.storeId, storeToken: req.query.token as string, pointsRecieved: 0, pointsRedeemed: 0 }
 
-        stores: stores
-      });
-      console.log(req.query.program);
+      await admin.firestore().collection(META).doc(newClient.storeId).set(newClient);
+      await admin.firestore().collection(newClient.programId).doc(newClient.storeId).set(clientDoc);
+
+      const doc = await admin.firestore().collection(ProgramId).doc(META).get()
+      const data: ProgramInfo = doc.data();
+      let stores: string[] =doc.data().stores;
+      stores.push(newClient.storeName);
+
+      let storeMap: StoreMap[] = data.storeActivities;
+      let newStoreMap: StoreMap = {};
+      newStoreMap[newClient.storeId] = false;
+      storeMap.push(newStoreMap);
+      const updated: ProgramInfo = { stores: stores, storeActivities: storeMap, storeCount: data.storeCount + 1, programName: data.programName as string, id: data.id};
+      await admin.firestore().collection(ProgramId).doc(META).set(updated);
+
       res.set({ 'Access-Control-Allow-Origin': '*' }).status(200).json({ program:  doc.data().programName, stores: stores,partnerid:ProgramId});
     };
   
@@ -105,6 +117,54 @@ exports.joinPartnerProgram = functions.https.onRequest(async (req, res) => {
   }
 
 });
+
+
+//TODO:
+
+exports.leavePartnerProgram = functions.https.onRequest(async (req, res) => {
+
+  try {
+    console.log("fetching client");
+    const client = new Client({
+      environment: Environment.Sandbox,
+      accessToken: req.query.token as string,
+    })
+
+    console.log("fetching merchant");
+    const merchant = (await client.merchantsApi.retrieveMerchant("me"));
+    const storeId: string = merchant.result.merchant!.id as string;
+
+    // find program store belongs to
+    console.log("fetching client's info from DS - client is " + merchant.result.merchant!.businessName );
+    const store: ClientInfo = await admin.firestore().collection(META).doc(storeId).get().data();
+
+    console.log("fetching program of client");
+    const doc = await admin.firestore().collection(store.programId).doc(META);
+    const programInfo: ProgramInfo = doc.get().data();
+    
+
+    const storeMap: StoreMap[] = programInfo.storeActivities;
+    
+    let newStoreMap: StoreMap[] = [];
+
+    storeMap.forEach(st => {
+      if (!st.hasOwnProperty(storeId)) {
+        newStoreMap.push(st);
+      }
+    });
+
+    console.log("updating database");
+    await doc.update({ storeCount: programInfo.storeCount - 1, storeActivities: newStoreMap });
+    await admin.firestore().collection(store.programId).doc(storeId).delete();
+    await admin.firestore().collection(META).doc(storeId).delete();
+
+  } catch (error) {
+    console.error(error);
+  }
+
+});
+
+
 
 exports.customer = functions.https.onRequest(async (req, res) => {
 
@@ -119,12 +179,14 @@ exports.customer = functions.https.onRequest(async (req, res) => {
 });
 
 
+
+// TODO: update
 exports.updateLoyaltyforCustomer = functions.https.onRequest(async (req, res) => {
 
 
   const customerNumber = req.body.data.object.loyalty_account.mapping.phone_number;
   const customerPoints = req.body.data.object.loyalty_account.balance;
-  const reason = req.body.data.object.loyalty_account.balance;
+  //const reason = req.body.data.object.loyalty_account.balance;
   const partnerProgramid = await findPartnerProgram(req.body.merchant_id);
   const allClients = await fetchStores(req.body.merchant_id, partnerProgramid as string);
 
@@ -216,8 +278,6 @@ async function fetchStores(merchantId: string, programId: string) {
 }
 
 
-
-
 exports.authorize = functions.https.onRequest(async (req, res) => {
   const client: Client = new Client({ environment: Environment.Sandbox });
 
@@ -264,19 +324,10 @@ exports.authorize_me = functions.https.onRequest(async (req, res) => {
   res.redirect(authURL);
 })
 
-
-exports.testingpost = functions.https.onRequest(async (req, res) => {
-  res.set({ 'Access-Control-Allow-Origin': '*' }).json({ token: "response.result.accessToken" });
-})
-// async function createSellerAccount(accessToken: string, refreshToken: string, merchantId: string) {
-//   await admin.firestore().collection(META).doc(merchantId).set({ accessToken: accessToken, refreshToken: refreshToken, active: false });
-// }
-
-
-
 async function checkForExisitingClients(id: string) {
   return await admin.firestore().collection(META).doc(id).get();
 }
+
 
 
 exports.fetchStats =  functions.https.onRequest(async (req, res) => {
@@ -286,6 +337,9 @@ exports.fetchStats =  functions.https.onRequest(async (req, res) => {
   // for each store the internal and external points
 })
 
-// async function getProgram(id: string) {
-  
-// }
+
+
+
+async function checkIfLoyaltyIsActive() {
+
+}
