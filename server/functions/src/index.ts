@@ -50,7 +50,9 @@ exports.createPartnerProgram = functions.https.onRequest(async (req, res) => {
       res.set({ 'Access-Control-Allow-Origin': '*' }).status(200).json({ program: document.programName });
       
     } else {
-      checkIfLoyaltyIsActive();
+      if (!hasActiveLoyaltyProgram(client)) {
+        res.send("You need to have an active loyalty program")
+      }
       const newClient: ClientInfo = { programId: newProgramId, storeName: storeName, isActive: true, storeId: storeId};
       const clientDoc: ClientDoc = { storeName: newClient.storeName, storeId: newClient.storeId, storeToken: req.query.token as string, pointsRecieved: 0, pointsRedeemed: 0 }
       let storeMap: StoreMap = {};
@@ -89,6 +91,9 @@ exports.joinPartnerProgram = functions.https.onRequest(async (req, res) => {
       res.set({ 'Access-Control-Allow-Origin': '*' }).status(200).json({ program: document.programName });
       
     } else {
+      if (!hasActiveLoyaltyProgram(client)) {
+        res.send("You need to have an active loyalty program")
+      }
       const newClient: ClientInfo = { programId: ProgramId, storeName: storeName, isActive: true, storeId: storeId};
       const clientDoc: ClientDoc = { storeName: newClient.storeName, storeId: newClient.storeId, storeToken: req.query.token as string, pointsRecieved: 0, pointsRedeemed: 0 }
 
@@ -313,6 +318,64 @@ exports.fetchStats =  functions.https.onRequest(async (req, res) => {
 
 
 // TODO:
-async function checkIfLoyaltyIsActive() {
+export async function hasActiveLoyaltyProgram(client: Client) {
+  try {
+      const response = await  client.loyaltyApi.retrieveLoyaltyProgram('main');
+      return response.result.program?.status === "ACTIVE";
+  } catch (error) {
+    console.log(error);
+    return false;
+     
+    }
+}
 
+async function checkForExisitingClients(id: string) {
+  return await admin.firestore().collection(META).doc(id).get();
+}
+
+
+export async function createSharedCustomerGroup(clients: Client[], partnerPorgramName: string ) {
+    
+  let result: any[] = [];
+
+  try {
+      await Promise.all(clients.map(async (client) => {
+          const response = await client.customerGroupsApi.createCustomerGroup({
+              idempotencyKey: uuidv4(),
+              group: {
+                name: partnerPorgramName
+              }
+          });
+  
+          await result.push(response.result.group?.id);
+      }))
+
+      
+      
+  } catch (error) {
+    
+    console.log(error);
+
+  }
+  
+  return result;
+  
+}
+
+
+export async function deleteSharedCustomerGroup(clients: Client[]) {
+  try {
+      
+      await Promise.all(clients.map(async (client) => {
+          const id: string = 'ss';
+          await client.customerGroupsApi.deleteCustomerGroup(id);
+      }))
+    
+
+      
+    } catch(error) {
+    console.log(error);
+
+    }
+  
 }
