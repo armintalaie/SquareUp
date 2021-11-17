@@ -27,6 +27,8 @@ export async function createLoyaltyProgram(client: Client) {
     }
 }
 
+
+
 // TODO:
 export async function deleteLoyaltyProgram(client: Client) {
     
@@ -52,8 +54,11 @@ export async function hasActiveLoyaltyProgram(client: Client) {
 // Managing partnering loyalties
 
 // TODO:
-export async function createPartnerProgram(clients: Client[]) {
+export async function createPartnerProgram(client: Client) {
 
+  const newProgramId: string = uuidv4();
+
+  
 }
 
 // TODO:
@@ -69,6 +74,12 @@ export async function deletePartnerProgram(clients: Client[]) {
 // TODO:
 export async function setPartnerProgramConversion(clients: Client[]) {
     
+}
+
+// TODO:
+export async function joinPartnerProgram(clients: Client[]) {
+
+  
 }
 
 
