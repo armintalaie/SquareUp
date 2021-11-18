@@ -2,7 +2,7 @@ import * as functions from "firebase-functions";
 import { v4 as uuidv4 } from 'uuid';
 import * as crypto from "crypto";
 import { Client, Environment } from 'square';
-import { ClientDoc, ClientInfo, ProgramInfo, StoreMap } from "./model";
+import { Activity, ClientDoc, ClientInfo, ProgramInfo, StoreMap } from "./model";
 import { SQUARE_API } from "./API";
 
 //import * as admin from 'firebase-admin';
@@ -57,10 +57,13 @@ exports.createPartnerProgram = functions.https.onRequest(async (req, res) => {
       const clientDoc: ClientDoc = { storeName: newClient.storeName, storeId: newClient.storeId, storeToken: req.query.token as string, pointsRecieved: 0, pointsRedeemed: 0 }
       let storeMap: StoreMap = {};
       storeMap[newClient.storeId] = false;
-      const newProgram: ProgramInfo = { stores: [newClient.storeName], storeActivities: [storeMap], storeCount: 1, programName: req.query.program as string, id: newClient.programId};
+      const activities: Activity = {};
+  
+      const newProgram: ProgramInfo = { stores: [newClient.storeName], storeActivities: storeMap, storeCount: 1, programName: req.query.program as string, id: newClient.programId};
       await db.collection(META).doc(newClient.storeId).set(newClient);
       await db.collection(newClient.programId).doc(newClient.storeId).set(clientDoc);
       await db.collection(newClient.programId).doc(META).set(newProgram);
+      await db.collection(newClient.programId).doc("Activities").set(activities);
       res.set({ 'Access-Control-Allow-Origin': '*' }).status(200).json({ program:  newProgram.programName, stores: newProgram.stores, partnerid: newProgram.id});
     };
    
@@ -105,10 +108,8 @@ exports.joinPartnerProgram = functions.https.onRequest(async (req, res) => {
       let stores: string[] =doc.data().stores;
       stores.push(newClient.storeName);
 
-      let storeMap: StoreMap[] = data.storeActivities;
-      let newStoreMap: StoreMap = {};
-      newStoreMap[newClient.storeId] = false;
-      storeMap.push(newStoreMap);
+      let storeMap: StoreMap = data.storeActivities;
+      storeMap[newClient.storeId] = false;
       const updated: ProgramInfo = { stores: stores, storeActivities: storeMap, storeCount: data.storeCount + 1, programName: data.programName as string, id: data.id};
       await db.collection(ProgramId).doc(META).set(updated);
 
@@ -144,15 +145,14 @@ exports.leavePartnerProgram = functions.https.onRequest(async (req, res) => {
     console.log("fetching program of client");
     const doc = await db.collection(store.programId).doc(META).get();
     const programInfo: ProgramInfo = doc.data();
-    const storeMap: StoreMap[] = programInfo.storeActivities;
-    
-    let newStoreMap: StoreMap[] = [];
+    const storeMap: StoreMap = programInfo.storeActivities;
+    let newStoreMap: StoreMap = {};
 
-    storeMap.forEach(st => {
-      if (!st.hasOwnProperty(storeId)) {
-        newStoreMap.push(st);
-      }
-    });
+    for (const [key, value] of Object.entries(storeMap)) {
+      if (key != storeId)
+        newStoreMap[key] = value;
+    }
+   
 
     console.log("updating database");
     await db.collection(store.programId).doc(META).update({ storeCount: programInfo.storeCount - 1, storeActivities: newStoreMap });
@@ -193,21 +193,66 @@ exports.customer = functions.https.onRequest(async (req, res) => {
 
 
 
-// FIXME: implement new method by just updating one client at a time
+// FIXME: swap out webhook
 exports.updateLoyaltyforCustomer = functions.https.onRequest(async (req, res) => {
-  const customerNumber = req.body.data.object.loyalty_account.mapping.phone_number;
-  const customerPoints = req.body.data.object.loyalty_account.balance;
+
+  const EVENT_TYPE =  {REDEEM:"REDEEM_REWARD", ACCUMULATE: "ACCUMULATE_POINTS"}
+  const loyaltyEventType = req.body.data.object.loyalty_event.type;
+  console.log(loyaltyEventType);
+
+
   const partnerProgramid = await findPartnerProgram(req.body.merchant_id);
-  const allClients = await fetchStores(req.body.merchant_id, partnerProgramid as string);
+  const merchant_id = req.body.merchant_id;
 
-  const message = `${allClients.callingBusiness} modified customer loyaty points`
-  allClients.clients.forEach(client => {
-    updateCustomer(client, customerNumber, customerPoints, message);
-  });
+  const token = (await db.collection(partnerProgramid).doc(merchant_id).get()).data();
+  console.log(token);
+  const client = new Client({
+    environment: Environment.Sandbox,
+    accessToken: token.storeToken as string,
+  })
 
-  res.set({ 'Access-Control-Allow-Origin': '*' }).status(200);
+
+  let customerPoints: number = 0;
+  if (EVENT_TYPE.REDEEM == loyaltyEventType) {
+    const rewardId = req.body.data.object.loyalty_event["redeem_reward"].reward_id;
+    const reward = await client.loyaltyApi.retrieveLoyaltyReward(rewardId);
+    if (reward.result.reward?.points)
+      customerPoints = -1 * reward.result.reward?.points as number;
+    else {
+      throw new Error("something went wrong with finding the reward")
+    }
+    
+  } else if (EVENT_TYPE.ACCUMULATE == loyaltyEventType) {
+    customerPoints = req.body.data.object.loyalty_event["accumulate_points"].points;
+  } else {
+    console.log("NOT SUPPORTED EVENT TYPE")
+    res.status(400).send("NOT SUPPORTED EVENT TYPE");
+    return;
+  }
+
+ 
+  
+  const customerNumber = await findCustomerNumber(client, req.body.data.object.loyalty_event.loyalty_account_id) as string;
+
+
+  const allStores = await fetchStores(merchant_id, partnerProgramid);
+  const programInfo: ProgramInfo = (await db.collection(partnerProgramid).doc(META).get()).data();
+  allStores.clients.forEach(currClient => {
+    updateCustomer(currClient, customerNumber, customerPoints, programInfo.programName + ":" + allStores.callingBusiness + ":"+ loyaltyEventType);
+   })
+  res.set({ 'Access-Control-Allow-Origin': '*' }).status(200).send("ALL STORES HAVE BEEN UPDATED FOR CLIENT:" + customerNumber);
 
 })
+
+
+
+// async function createCustomerAcitivty(customerNumber: string, storeMap: StoreMap, programId: string ) {
+//   const activity: Activity = {};
+//   activity[customerNumber] = storeMap;
+//   await db.collection(programId).doc("Activities").set(activity);
+//   return activity;
+
+// }
 
 
 async function updateCustomer(client: Client, customerNumber: string, customerPoints: number, message?: string) {
@@ -249,43 +294,28 @@ async function updateCustomer(client: Client, customerNumber: string, customerPo
   }
 }
 
+
+async function findCustomerNumber(client: Client, loyatyAccountId: string) {
+
+  try {
+    console.log((await client.merchantsApi.retrieveMerchant("me")).result.merchant?.businessName);
+    console.log(loyatyAccountId);
+    const loyaltyAccount = await client.loyaltyApi.retrieveLoyaltyAccount(loyatyAccountId);
+    console.log(loyaltyAccount.result.loyaltyAccount);
+    return loyaltyAccount.result.loyaltyAccount?.mapping?.phoneNumber;
+  
+  } catch (e) {
+    console.log(e);
+    return "NOT FOUND";
+  }
+
+}
+
 async function findPartnerProgram(id: string) {
   const doc = await db.collection(META).doc(id).get();
   return doc.data().programId;
 }
 
-
-async function fetchStores(merchantId: string, programId: string) {
-
-  let callingClient: Client| undefined = undefined;
-  let callingBusiness: string = "";
-
-  const partners = await db.collection(programId).get();
-  let clients: Client[] = [];
-  for (const doc of partners.docs) {
-    const client = new Client({
-      environment: Environment.Sandbox,
-      accessToken: doc.data().token as string,
-    })
-
-    try {
-      if (callingClient === undefined) {
-        const currMerchant = await client.merchantsApi.retrieveMerchant("me");
-        if (currMerchant.result.merchant?.id == merchantId) {
-          callingClient = client;
-          callingBusiness = currMerchant.result.merchant.businessName as string;
-        } else {
-          clients.push(client);
-        }
-      } else {
-        clients.push(client);
-      }
-    } catch (err) {
-      console.log(err);
-    };
-  };
-  return {clients: clients, callingClient: callingClient!, callingBusiness: callingBusiness};
-}
 
 
 exports.authorize = functions.https.onRequest(async (req, res) => {
@@ -379,3 +409,80 @@ export async function deleteSharedCustomerGroup(clients: Client[]) {
     }
   
 }
+
+
+async function fetchStores(merchantId: string, programId: string) {
+
+  let callingClient: Client| undefined = undefined;
+  let callingBusiness: string = "";
+
+  const partners = await admin.firestore().collection(programId).get();
+  let clients: Client[] = [];
+  for (const doc of partners.docs) {
+    const client = new Client({
+      environment: Environment.Sandbox,
+      accessToken: doc.data().storeToken as string,
+    })
+
+    try {
+      if (callingClient === undefined) {
+        const currMerchant = await client.merchantsApi.retrieveMerchant("me");
+        if (currMerchant.result.merchant?.id == merchantId) {
+          callingClient = client;
+          callingBusiness = currMerchant.result.merchant.businessName as string;
+        } else {
+          clients.push(client);
+        }
+      } else {
+        clients.push(client);
+      }
+    } catch (err) {
+      console.log(err);
+    };
+  };
+  return {clients: clients, callingClient: callingClient!, callingBusiness: callingBusiness};
+}
+
+
+
+ // let activities: Activity = (await db.collection(programInfo.id).doc("Activities").get()).data();
+
+  // if (!activities.hasOwnProperty(customerNumber)) {
+  //  activities =  await createCustomerAcitivty(customerNumber, programInfo.storeActivities, programInfo.id);
+  // }
+
+  // let storeMap: StoreMap = activities[customerNumber];
+
+  // if (storeMap[merchant_id]) {
+  //   console.log("customer update is looped through - deleting activitie");
+  //   delete activities[customerNumber];
+  //   await db.collection(programInfo.id).doc("Activities").set(activities);
+
+  // } else {
+
+  //   storeMap[merchant_id] = true;
+  //   for (const [key, value] of Object.entries(storeMap)) {
+  //     if (!value) {
+  //       storeMap[key] = true;
+  //       try {
+  //         const message = `modified customer loyaty points`;
+  //         console.log("fetching client to update " + key);
+  //         const token = (await db.collection(programInfo.id).doc(key).get()).data().storeToken;
+  //         activities[customerNumber] = storeMap;
+  //         await db.collection(programInfo.id).doc("Activities").set(activities);
+  //         console.log(token);
+  //         const client = new Client({
+  //           environment: Environment.Sandbox,
+  //           accessToken: token as string,
+  //         })
+  //         updateCustomer(client, customerNumber, customerPoints, message);
+
+  //       } catch (e) {
+  //         console.log(e);
+  //       }
+   
+  //       break;
+  //     }
+
+//     }
+// }

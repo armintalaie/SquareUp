@@ -8,7 +8,7 @@ export interface ClientDoc {
 
 export interface ProgramInfo {
     stores: string[];
-    storeActivities: StoreMap[];
+    storeActivities: StoreMap;
     storeCount: number;
     programName: string;
     id: string;
