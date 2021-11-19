@@ -2,8 +2,11 @@ export interface ClientDoc {
     storeId: string;
     storeToken: string;
     storeName: string;
-    pointsRecieved: number;
-    pointsRedeemed: number;
+    InternalPointsRecieved: number;
+    InternalPointsRedeemed: number;
+    ExternalPointsRecieved: number;
+    ExternalPointsRedeemed: number;
+
 }
 
 export interface ProgramInfo {
@@ -12,6 +15,7 @@ export interface ProgramInfo {
     storeCount: number;
     programName: string;
     id: string;
+   
 }
 
 export interface Activity {
