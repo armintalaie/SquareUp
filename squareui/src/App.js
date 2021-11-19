@@ -67,9 +67,9 @@ function App() {
       <ThemeProvider theme={theme}>
         <BrowserRouter>
           <Routes>
-            <Route exact path="/" element={<Home />} />
             <Route path="/setup" element={<Setup />} />
             <Route path="/dashboard" element={<Dashboard />} />
+            <Route path="/" element={<Home />} />'
           </Routes>
         </BrowserRouter>
       </ThemeProvider>
