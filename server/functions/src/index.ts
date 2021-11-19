@@ -54,7 +54,7 @@ exports.createPartnerProgram = functions.https.onRequest(async (req, res) => {
         res.send("You need to have an active loyalty program")
       }
       const newClient: ClientInfo = { programId: newProgramId, storeName: storeName, isActive: true, storeId: storeId};
-      const clientDoc: ClientDoc = { storeName: newClient.storeName, storeId: newClient.storeId, storeToken: req.query.token as string, pointsRecieved: 0, pointsRedeemed: 0 }
+      const clientDoc: ClientDoc = { storeName: newClient.storeName, storeId: newClient.storeId, storeToken: req.query.token as string, InternalPointsRecieved: 0, InternalPointsRedeemed: 0, ExternalPointsRecieved: 0, ExternalPointsRedeemed: 0  }
       let storeMap: StoreMap = {};
       storeMap[newClient.storeId] = false;
       const activities: Activity = {};
@@ -64,7 +64,7 @@ exports.createPartnerProgram = functions.https.onRequest(async (req, res) => {
       await db.collection(newClient.programId).doc(newClient.storeId).set(clientDoc);
       await db.collection(newClient.programId).doc(META).set(newProgram);
       await db.collection(newClient.programId).doc("Activities").set(activities);
-      res.set({ 'Access-Control-Allow-Origin': '*' }).status(200).json({ program:  newProgram.programName, stores: newProgram.stores, partnerid: newProgram.id});
+      res.set({ 'Access-Control-Allow-Origin': '*' }).status(200).json({ program:  newProgram.programName, stores: newProgram.stores, partnerid: newProgram.id,  id: clientDoc.storeId});
     };
    
   } catch (e) {
@@ -98,7 +98,7 @@ exports.joinPartnerProgram = functions.https.onRequest(async (req, res) => {
         res.send("You need to have an active loyalty program")
       }
       const newClient: ClientInfo = { programId: ProgramId, storeName: storeName, isActive: true, storeId: storeId};
-      const clientDoc: ClientDoc = { storeName: newClient.storeName, storeId: newClient.storeId, storeToken: req.query.token as string, pointsRecieved: 0, pointsRedeemed: 0 }
+      const clientDoc: ClientDoc = { storeName: newClient.storeName, storeId: newClient.storeId, storeToken: req.query.token as string,  InternalPointsRecieved: 0, InternalPointsRedeemed: 0, ExternalPointsRecieved: 0, ExternalPointsRedeemed: 0  }
 
       await db.collection(META).doc(newClient.storeId).set(newClient);
       await db.collection(newClient.programId).doc(newClient.storeId).set(clientDoc);
@@ -113,7 +113,7 @@ exports.joinPartnerProgram = functions.https.onRequest(async (req, res) => {
       const updated: ProgramInfo = { stores: stores, storeActivities: storeMap, storeCount: data.storeCount + 1, programName: data.programName as string, id: data.id};
       await db.collection(ProgramId).doc(META).set(updated);
 
-      res.set({ 'Access-Control-Allow-Origin': '*' }).status(200).json({ program:  doc.data().programName, stores: stores,partnerid:ProgramId});
+      res.set({ 'Access-Control-Allow-Origin': '*' }).status(200).json({ program:  doc.data().programName, stores: stores,partnerid:ProgramId , id: clientDoc.storeId});
     };
     } catch (e) {
     console.log(e);
@@ -178,7 +178,6 @@ async function deletePartnerProgram(programId: string) {
   await db.collection(programId).doc(META).delete();
 }
 
-
 exports.customer = functions.https.onRequest(async (req, res) => {
 
   if (isFromSquare(NOTIFICATION_URL, req, sigKey)) {
@@ -231,15 +230,16 @@ exports.updateLoyaltyforCustomer = functions.https.onRequest(async (req, res) =>
   }
 
  
+  updateDBPoints(merchant_id,  customerPoints, partnerProgramid , false);
   
   const customerNumber = await findCustomerNumber(client, req.body.data.object.loyalty_event.loyalty_account_id) as string;
-
-
-  const allStores = await fetchStores(merchant_id, partnerProgramid);
+  const allStores = await fetchStores(merchant_id, partnerProgramid, customerPoints);
   const programInfo: ProgramInfo = (await db.collection(partnerProgramid).doc(META).get()).data();
   allStores.clients.forEach(currClient => {
     updateCustomer(currClient, customerNumber, customerPoints, programInfo.programName + ":" + allStores.callingBusiness + ":"+ loyaltyEventType);
-   })
+  })
+  
+  
   res.set({ 'Access-Control-Allow-Origin': '*' }).status(200).send("ALL STORES HAVE BEEN UPDATED FOR CLIENT:" + customerNumber);
 
 })
@@ -338,11 +338,22 @@ exports.authorize = functions.https.onRequest(async (req, res) => {
 
 
 // TODO:
-exports.fetchStats =  functions.https.onRequest(async (req, res) => {
+exports.fetchStats = functions.https.onRequest(async (req, res) => {
   // program name
-  // program id
-  // stores
-  // for each store the internal and external points
+  try {
+    const storeToken = req.query.token;
+    // program id
+    const programId = req.query.program;
+    const storeId = req.query.storeId;
+    const data =  (await db.collection(programId).doc(storeId).get()).data();
+    if (data.storeToken == storeToken) {
+      res.set({ 'Access-Control-Allow-Origin': '*' }).status(200).json(data);
+    }
+  } catch (e) {
+    console.log(e);
+    res.sendStatus(400);
+  }
+
 })
 
 
@@ -411,7 +422,7 @@ export async function deleteSharedCustomerGroup(clients: Client[]) {
 }
 
 
-async function fetchStores(merchantId: string, programId: string) {
+async function fetchStores(merchantId: string, programId: string, customerPoints: number) {
 
   let callingClient: Client| undefined = undefined;
   let callingBusiness: string = "";
@@ -431,6 +442,7 @@ async function fetchStores(merchantId: string, programId: string) {
           callingClient = client;
           callingBusiness = currMerchant.result.merchant.businessName as string;
         } else {
+          updateDBPoints(currMerchant.result.merchant?.id as string,  customerPoints, programId , true);
           clients.push(client);
         }
       } else {
@@ -444,6 +456,17 @@ async function fetchStores(merchantId: string, programId: string) {
 }
 
 
+async function updateDBPoints(storeid: string, customerPoints: number, programId: string, isExternal: boolean) {
+  let key: string = isExternal ? "External" : "Internal";
+  if (customerPoints > 0) {
+    await db.collection(programId).doc(storeid).update({[key + "PointsRecieved"]: admin.firestore.FieldValue.increment(customerPoints)})
+
+  } else {
+    await db.collection(programId).doc(storeid).update({[key + "PointsRedeemed"]: admin.firestore.FieldValue.increment(customerPoints)})
+
+  }
+ 
+}
 
  // let activities: Activity = (await db.collection(programInfo.id).doc("Activities").get()).data();
 
