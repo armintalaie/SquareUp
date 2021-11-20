@@ -6,7 +6,7 @@ export interface ClientDoc {
     InternalPointsRedeemed: number;
     ExternalPointsRecieved: number;
     ExternalPointsRedeemed: number;
-
+    conversionRate: number;
 }
 
 export interface ProgramInfo {
@@ -25,7 +25,6 @@ export interface Activity {
 export interface StoreMap {
     [storeId: string]: boolean;
 }
-
 
 export interface ClientInfo {
     programId: string;

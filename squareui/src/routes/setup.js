@@ -30,13 +30,14 @@ export default function Setup() {
       );
       console.log(response);
       const ret = await response.json();
+      console.log(ret.stores);
       navigate("/dashboard", {
         state: {
-          id: 7,
-          color: "green",
           program: ret.program,
           stores: ret.stores,
           partnerid: ret.partnerid,
+          storeId: ret.storeId,
+          conversationRate: ret.conversionRate,
         },
       });
       console.log(ret);
@@ -60,11 +61,11 @@ export default function Setup() {
       const ret = await response.json();
       navigate("/dashboard", {
         state: {
-          id: 7,
-          color: "green",
           program: ret.program,
           stores: ret.stores,
           partnerid: ret.partnerid,
+          storeId: ret.storeId,
+          conversationRate: ret.conversionRate,
         },
       });
       console.log(ret);

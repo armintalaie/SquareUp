@@ -54,7 +54,7 @@ exports.createPartnerProgram = functions.https.onRequest(async (req, res) => {
         res.send("You need to have an active loyalty program")
       }
       const newClient: ClientInfo = { programId: newProgramId, storeName: storeName, isActive: true, storeId: storeId};
-      const clientDoc: ClientDoc = { storeName: newClient.storeName, storeId: newClient.storeId, storeToken: req.query.token as string, InternalPointsRecieved: 0, InternalPointsRedeemed: 0, ExternalPointsRecieved: 0, ExternalPointsRedeemed: 0  }
+      const clientDoc: ClientDoc = { storeName: newClient.storeName, storeId: newClient.storeId, storeToken: req.query.token as string, InternalPointsRecieved: 0, InternalPointsRedeemed: 0, ExternalPointsRecieved: 0, ExternalPointsRedeemed: 0, conversionRate:1 }
       let storeMap: StoreMap = {};
       storeMap[newClient.storeId] = false;
       const activities: Activity = {};
@@ -64,7 +64,7 @@ exports.createPartnerProgram = functions.https.onRequest(async (req, res) => {
       await db.collection(newClient.programId).doc(newClient.storeId).set(clientDoc);
       await db.collection(newClient.programId).doc(META).set(newProgram);
       await db.collection(newClient.programId).doc("Activities").set(activities);
-      res.set({ 'Access-Control-Allow-Origin': '*' }).status(200).json({ program:  newProgram.programName, stores: newProgram.stores, partnerid: newProgram.id,  id: clientDoc.storeId});
+      res.set({ 'Access-Control-Allow-Origin': '*' }).status(200).json({ program:  newProgram.programName, stores: newProgram.stores, partnerid: newProgram.id,  storeId: clientDoc.storeId});
     };
    
   } catch (e) {
@@ -98,7 +98,7 @@ exports.joinPartnerProgram = functions.https.onRequest(async (req, res) => {
         res.send("You need to have an active loyalty program")
       }
       const newClient: ClientInfo = { programId: ProgramId, storeName: storeName, isActive: true, storeId: storeId};
-      const clientDoc: ClientDoc = { storeName: newClient.storeName, storeId: newClient.storeId, storeToken: req.query.token as string,  InternalPointsRecieved: 0, InternalPointsRedeemed: 0, ExternalPointsRecieved: 0, ExternalPointsRedeemed: 0  }
+      const clientDoc: ClientDoc = { storeName: newClient.storeName, storeId: newClient.storeId, storeToken: req.query.token as string,  InternalPointsRecieved: 0, InternalPointsRedeemed: 0, ExternalPointsRecieved: 0, ExternalPointsRedeemed: 0 , conversionRate: 1 }
 
       await db.collection(META).doc(newClient.storeId).set(newClient);
       await db.collection(newClient.programId).doc(newClient.storeId).set(clientDoc);
@@ -113,7 +113,7 @@ exports.joinPartnerProgram = functions.https.onRequest(async (req, res) => {
       const updated: ProgramInfo = { stores: stores, storeActivities: storeMap, storeCount: data.storeCount + 1, programName: data.programName as string, id: data.id};
       await db.collection(ProgramId).doc(META).set(updated);
 
-      res.set({ 'Access-Control-Allow-Origin': '*' }).status(200).json({ program:  doc.data().programName, stores: stores,partnerid:ProgramId , id: clientDoc.storeId});
+      res.set({ 'Access-Control-Allow-Origin': '*' }).status(200).json({ program:  doc.data().programName, stores: stores,partnerid:ProgramId , storeId: clientDoc.storeId});
     };
     } catch (e) {
     console.log(e);
@@ -245,16 +245,6 @@ exports.updateLoyaltyforCustomer = functions.https.onRequest(async (req, res) =>
 })
 
 
-
-// async function createCustomerAcitivty(customerNumber: string, storeMap: StoreMap, programId: string ) {
-//   const activity: Activity = {};
-//   activity[customerNumber] = storeMap;
-//   await db.collection(programId).doc("Activities").set(activity);
-//   return activity;
-
-// }
-
-
 async function updateCustomer(client: Client, customerNumber: string, customerPoints: number, message?: string) {
   try {
     const response = await client.customersApi.searchCustomers({
@@ -322,6 +312,7 @@ exports.authorize = functions.https.onRequest(async (req, res) => {
   const client: Client = new Client({ environment: Environment.Sandbox });
 
   try {
+    console.log(CLIENT_ID + "  " + CLIENTT_SECRET + "  " + req.query.code);
     const response = await client.oAuthApi.obtainToken({
       clientId: CLIENT_ID,
       clientSecret: CLIENTT_SECRET,
@@ -330,6 +321,7 @@ exports.authorize = functions.https.onRequest(async (req, res) => {
     });
     res.set({ 'Access-Control-Allow-Origin': '*' }).status(200).json({ token: response.result.accessToken });
   } catch (error) {
+    console.log(error);
   
     res.set({ 'Access-Control-Allow-Origin': '*' }).status(400).json({ token: error });
    
@@ -351,7 +343,7 @@ exports.fetchStats = functions.https.onRequest(async (req, res) => {
     }
   } catch (e) {
     console.log(e);
-    res.sendStatus(400);
+    res.set({ 'Access-Control-Allow-Origin': '*' }).sendStatus(400);
   }
 
 })
@@ -458,11 +450,16 @@ async function fetchStores(merchantId: string, programId: string, customerPoints
 
 async function updateDBPoints(storeid: string, customerPoints: number, programId: string, isExternal: boolean) {
   let key: string = isExternal ? "External" : "Internal";
+
+  let conversion = 1;
+  if (!isExternal) {
+    conversion = (await db.collection(programId).doc(storeid).get()).data().conversionRate;
+  }
   if (customerPoints > 0) {
-    await db.collection(programId).doc(storeid).update({[key + "PointsRecieved"]: admin.firestore.FieldValue.increment(customerPoints)})
+    await db.collection(programId).doc(storeid).update({[key + "PointsRecieved"]: admin.firestore.FieldValue.increment(customerPoints / conversion)})
 
   } else {
-    await db.collection(programId).doc(storeid).update({[key + "PointsRedeemed"]: admin.firestore.FieldValue.increment(customerPoints)})
+    await db.collection(programId).doc(storeid).update({[key + "PointsRedeemed"]: admin.firestore.FieldValue.increment(customerPoints / conversion)})
 
   }
  

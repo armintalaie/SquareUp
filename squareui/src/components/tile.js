@@ -3,10 +3,11 @@ import Typography from "@mui/material/Typography";
 
 export default function Tile(props) {
   const title = props.title ? props.title : "Customers";
-  const count = props.count ? props.count : 400;
+
+  const count = props.count;
 
   return (
-    <Paper elevation={3} sx={{ width: "12rem", height: "12rem", p: 2, m: 2 }}>
+    <Paper elevation={3} sx={{ width: "13rem", height: "13rem", p: 2, m: 2 }}>
       <Stack
         justifyContent="space-between"
         sx={{ width: "100%", height: "100%", p: 0, m: 0 }}

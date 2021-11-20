@@ -14,29 +14,40 @@ import DialogContentText from "@mui/material/DialogContentText";
 import DialogTitle from "@mui/material/DialogTitle";
 import Tile from "../components/tile";
 import Label from "../components/label";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { ActionButton } from "../theme";
 import { useNavigate, useLocation } from "react-router";
+const API_LINK = "https://us-central1-square-4797a.cloudfunctions.net/";
 
 export default function Dashaboard() {
   const { state } = useLocation();
-  const { program, stores, partnerid } =
+  const { program, stores, partnerid, storeId, conversionRate } =
     state == null
       ? {
           program: "N/A",
           stores: [".....", ".....", ".....", ".....", "....."],
           partnerid: "N/A",
+          id: "N/A",
+          conversionRate: 1,
         }
       : state;
-
+  console.log(storeId + "  " + program);
   console.log(localStorage.getItem("token"));
   const navigate = useNavigate();
   const [updateConversionbtn, setupdateConverisonbtn] = useState(false);
-  const [conversions, setConversions] = useState([3, 4]);
+  const [conversions, setConversions] = useState(conversionRate);
   const [programName, setProgramName] = useState(program);
   const [storeNames, setStores] = useState(stores);
   const [partners, setPartners] = useState(["Nike", "Adidas"]);
+
+  const [stats, setStats] = useState({
+    internalPointsRecieved: 0,
+    externalPointsRecieved: 0,
+    internalPointsRedeemed: 0,
+    externalPointsRedeemed: 0,
+  });
   async function updateConversion() {
+    // submit conversions
     setupdateConverisonbtn(false);
   }
 
@@ -53,51 +64,87 @@ export default function Dashaboard() {
     setOpen(false);
   };
 
+  async function fetchStats() {
+    console.log(
+      API_LINK +
+        "fetchStats/?token=" +
+        localStorage.getItem("token") +
+        "&program=" +
+        partnerid +
+        "&storeId=" +
+        storeId
+    );
+    const response = await fetch(
+      API_LINK +
+        "fetchStats/?token=" +
+        localStorage.getItem("token") +
+        "&program=" +
+        partnerid +
+        "&storeId=" +
+        storeId
+    );
+
+    const ret = await response.json();
+
+    const newStats = {
+      internalPointsRecieved: ret.InternalPointsRecieved,
+      externalPointsRecieved: ret.ExternalPointsRecieved,
+      internalPointsRedeemed: ret.InternalPointsRedeemed,
+      externalPointsRedeemed: ret.ExternalPointsRedeemed,
+    };
+    console.log(newStats);
+
+    setConversions(ret.conversionRate);
+    setStats(newStats);
+  }
+
+  useEffect(() => {
+    console.log("ret");
+    // Update the document title using the browser API
+    fetchStats();
+  });
+
   const conversion = () => {
     if (updateConversionbtn) {
       return (
-        <Container maxWidth="md">
-          <Typography variant="h5">
-            Set conversion of your points to partner stores and vice versa
-          </Typography>
+        <Container maxWidth="md" alignItems="center" justifyContent="center">
           <Stack direction="row" justifyContent="center" alignItems="center">
-            <TextField
-              id="outlined-number"
-              label="Partner points"
-              type="number"
-              InputLabelProps={{
-                shrink: true,
-              }}
-              onChange={(e) => {
-                setConversions([e.target.value, conversions[1]]);
-              }}
-              defaultValue={conversions[0]}
-            ></TextField>
-
-            <Typography variant="h2">=</Typography>
-
-            <TextField
-              id="outlined-number"
-              label="Your points"
-              type="number"
-              InputLabelProps={{
-                shrink: true,
-              }}
-              onChange={(e) => {
-                setConversions([conversions[0], e.target.value]);
-              }}
-              defaultValue={conversions[1]}
-            ></TextField>
+            <Paper elevation={1} sx={{ width: "50rem", p: 4, m: 2 }}>
+              <Typography variant="h3">
+                Set the conversion rate of external stores point to your
+                external points
+              </Typography>
+              <Stack
+                direction="row"
+                justifyContent="center"
+                alignItems="center"
+              >
+                Every{" "}
+                <TextField
+                  sx={{ width: "5rem", height: "3rem", ml: 3, mr: 3 }}
+                  id="outlined-number"
+                  type="number"
+                  InputLabelProps={{
+                    shrink: true,
+                  }}
+                  onChange={(e) => {
+                    setConversions(e.target.value);
+                  }}
+                  defaultValue={conversions}
+                ></TextField>{" "}
+                points from partner stores is equivalent to 1 external point
+              </Stack>
+              <ActionButton
+                variant="contained"
+                color="secondary"
+                onClick={() => {
+                  updateConversion();
+                }}
+              >
+                Apply conversion
+              </ActionButton>
+            </Paper>
           </Stack>
-          <ActionButton
-            variant="outlined"
-            color="secondary"
-            onClick={() => {
-              updateConversion();
-            }}
-          >
-            Apply conversion
-          </ActionButton>
         </Container>
       );
     } else {
@@ -141,10 +188,22 @@ export default function Dashaboard() {
             alignItems="center"
             justifyContent="center"
           >
-            <Tile title={"Instore Points Added"} count={40} />
-            <Tile title={"Instore Points Redeemed"} count={400} />
-            <Tile title={"Total Points Added"} count={1240} />
-            <Tile title={"Total Points Redeemed"} count={320} />
+            <Tile
+              title={"Instore Points Added"}
+              count={stats.internalPointsRecieved}
+            />
+            <Tile
+              title={"Instore Points Redeemed"}
+              count={stats.internalPointsRedeemed}
+            />
+            <Tile
+              title={"External Points Added"}
+              count={stats.externalPointsRecieved}
+            />
+            <Tile
+              title={"External Points Redeemed"}
+              count={stats.externalPointsRedeemed}
+            />
           </Stack>
         </Box>
         <Typography variant="h2">Participating Partners</Typography>
@@ -180,9 +239,7 @@ export default function Dashaboard() {
                 </Typography>
               </Container>
               <Container sx={{ m: 2, p: 2 }}>
-                <Typography variant="h2">
-                  8852a6a7-e755-46c3-bd3b-cf3c9f2f6799
-                </Typography>
+                <Typography variant="h2">{partnerid}</Typography>
               </Container>
             </DialogContent>
             <DialogActions>

@@ -42,6 +42,7 @@ export default function Setup(props) {
     //const client = new Client();
 
     try {
+      alert(name);
       const resp = await fetch(
         "https://us-central1-square-4797a.cloudfunctions.net/authorize/?code=" +
           name
@@ -69,7 +70,7 @@ export default function Setup(props) {
         <h4> {form} </h4>{" "}
         <Container maxWidth="md">
           <Paper elevation={1}>
-            <Box m={3} p={3} pb={5} pt={5} textAlign={"left"}>
+            <Box m={3} p={3} pb={2} pt={2} textAlign={"left"}>
               <Typography variant="h5">
                 Partner with other Square stores to take your loyalty programs
                 to a new level{" "}
