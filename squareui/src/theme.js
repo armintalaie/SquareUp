@@ -1,12 +1,5 @@
-import {
-  Button,
-  Paper,
-  Container,
-  Box,
-  TextField,
-  makeStyles,
-} from "@mui/material";
-import { styled, createTheme, ThemeProvider } from "@mui/system";
+import { Button, TextField } from "@mui/material";
+import { styled } from "@mui/system";
 
 export const ActionButton = styled(Button)({
   boxShadow: "none",
@@ -18,20 +11,24 @@ export const ActionButton = styled(Button)({
   borderRadius: "5px",
   lineHeight: 1.5,
   color: "primary",
+  transition: "background 0.5s, color 0.5s , width 0.5s",
   fontFamily: ["futura"].join(","),
 
   "&:hover": {
-    backgroundColor: "#5052A5",
-    borderColor: "#34b3a4",
+    backgroundColor: "#3C91E6",
+    borderColor: "#3C91E6",
     boxShadow: "none",
+    minWidth: "rem",
   },
   "&:active": {
     boxShadow: "none",
-    backgroundColor: "#34b3a4",
-    borderColor: "#005cbf",
+    backgroundColor: "#1970C8",
+    borderColor: "#3C91E6",
+    minWidth: "10rem",
   },
   "&:focus": {
-    boxShadow: "#34b3a4",
+    boxShadow: "#388FE5",
+    minWidth: "10rem",
   },
 });
 

@@ -1,11 +1,8 @@
 import "./App.css";
 import { createTheme, ThemeProvider } from "@mui/material";
-import Typography from "@mui/material/Typography";
 import "@fontsource/roboto";
 import { BrowserRouter, Route, Routes } from "react-router-dom";
-import Setup from "./routes/setup";
 import Home from "./routes/home";
-import Dashboard from "./routes/dashboard";
 const font = "Poppins";
 
 export const theme = createTheme({
@@ -15,7 +12,7 @@ export const theme = createTheme({
   typography: {
     fontFamily: [font].join(","),
     h1: {
-      color: "#0A2463",
+      color: "#388FE5",
       padding: 10,
       margin: 10,
       marginBottom: "5rem",
@@ -50,10 +47,10 @@ export const theme = createTheme({
   },
   palette: {
     primary: {
-      main: "#1245BA",
+      main: "#1970C8",
     },
     secondary: {
-      main: "#1245BA",
+      main: "#1970C8",
     },
   },
   root: {
@@ -67,8 +64,6 @@ function App() {
       <ThemeProvider theme={theme}>
         <BrowserRouter>
           <Routes>
-            <Route path="/setup" element={<Setup />} />
-            <Route path="/dashboard" element={<Dashboard />} />
             <Route path="/" element={<Home />} />'
           </Routes>
         </BrowserRouter>
