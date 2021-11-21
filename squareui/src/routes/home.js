@@ -6,17 +6,58 @@ import { useLocation } from "react-router-dom";
 import Setup from "../components/setup";
 import Dashboard from "../components/dashboard";
 import Loading from "../components/loading";
+const API_LINK = "https://us-central1-square-4797a.cloudfunctions.net/";
 
 export default function Home() {
   const [hasAccessToLoyalyProgram, setAccess] = useState(false);
-  const [programId, setProgramId] = useState(localStorage.getItem("programId"));
-  const [storeId, setStoreId] = useState(localStorage.getItem("storeId"));
+  const [programId, setProgramId] = useState("");
+  const [storeId, setStoreId] = useState("");
 
   function updateIds(programId, storeId, canShowDashboard) {
-    setStoreId(storeId);
-    setProgramId(programId);
     setAccess(canShowDashboard);
+    setProgramId(programId);
+    setStoreId(storeId);
   }
+
+  async function partnerProgramExists() {
+    try {
+      const response = await fetch(
+        API_LINK + "isClientAcitve/?token=" + localStorage.getItem("token")
+      );
+      if (response.ok) {
+        const result = await response.json();
+        localStorage.setItem("programId", result.programId);
+        localStorage.setItem("storeId", result.storeId);
+        console.log("could fetch user");
+      }
+    } catch (e) {
+      console.log("couldn't fetch user");
+    }
+  }
+
+  useEffect(() => {
+    if (
+      localStorage.getItem("programId") &&
+      localStorage.getItem("storeId") &&
+      localStorage.getItem("token")
+    ) {
+      setAccess(true);
+      updateIds(
+        localStorage.getItem("programId"),
+        localStorage.getItem("storeId"),
+        true
+      );
+    } else if (localStorage.getItem("token")) {
+      if (partnerProgramExists()) {
+        setAccess(true);
+        updateIds(
+          localStorage.getItem("programId"),
+          localStorage.getItem("storeId"),
+          true
+        );
+      }
+    }
+  }, []);
 
   const showDashboard = () => {
     if (hasAccessToLoyalyProgram)
@@ -41,18 +82,15 @@ function HomePage(props) {
   let token = "";
 
   useEffect(() => {
-    if (localStorage.getItem(token) != undefined) {
-      props.updateIds(
-        localStorage.getItem("programId"),
-        localStorage.getItem("storeId"),
-        true
-      );
-      return;
-    }
+    if (localStorage.getItem("token")) {
+      setAuthorized(true);
 
-    if (name) {
-      authorize();
       return;
+    } else {
+      if (name) {
+        authorize();
+        return;
+      }
     }
   }, []);
 
@@ -106,7 +144,7 @@ function HomePage(props) {
       return <Setup updateIds={props.updateIds} />;
     } else {
       return (
-        <a href={authURL}>
+        <a href={authURL} style={{ textDecoration: "none" }}>
           <ActionButton
             variant="contained"
             size="large"

@@ -22,7 +22,7 @@ import Loading from "./loading";
 const API_LINK = "https://us-central1-square-4797a.cloudfunctions.net/";
 
 export default function Dashboard(props) {
-  const [isLoading, setLoading] = useState(true);
+  const [isLoading, setLoading] = useState(false);
   const MAX_COUNT = 5;
   const [open, setOpen] = useState(false);
   const [wantToLeave, setWantToleave] = useState(false);
@@ -30,8 +30,8 @@ export default function Dashboard(props) {
   const storeId = props.storeId ? props.storeId : "MISSING STORE ID";
   const [updateConversionbtn, setupdateConverisonbtn] = useState(false);
   const [conversions, setConversions] = useState(1);
-  const [programName, setProgramName] = useState("Partner Program");
-  const [storeNames, setStores] = useState(["Store 1", "Store 2"]);
+  const [programName, setProgramName] = useState("");
+  const [storeNames, setStores] = useState([]);
   const [stats, setStats] = useState({
     internalPointsRecieved: 0,
     externalPointsRecieved: 0,
@@ -50,7 +50,7 @@ export default function Dashboard(props) {
   async function updateConversion() {
     setupdateConverisonbtn(false);
     try {
-      const response = await fetch(
+      await fetch(
         API_LINK +
           "updateConversion/?token=" +
           localStorage.getItem("token") +
@@ -61,7 +61,6 @@ export default function Dashboard(props) {
           "&conversion=" +
           conversions
       );
-      // setupdateConverisonbtn(false);
     } catch (e) {}
   }
 
@@ -69,19 +68,19 @@ export default function Dashboard(props) {
     setLoading(true);
     try {
       const response = await fetch(
-        API_LINK +
-          "leavePartnerProgram/?token=" +
-          localStorage.getItem("token") +
-          "&program=" +
-          programId +
-          "&storeId=" +
-          storeId
+        API_LINK + "leavePartnerProgram/?token=" + localStorage.getItem("token")
       );
-      const ret = await response.json();
-      localStorage.removeItem("token");
-      setLoading(false);
-      props.updateIds("programId", "storeId", false);
+      if (response.ok) {
+        localStorage.removeItem("token");
+        localStorage.removeItem("programId");
+        localStorage.removeItem("storeId");
+        setLoading(false);
+        props.updateIds("programId", "storeId", false);
+      } else {
+        throw new Error("Something went wrong");
+      }
     } catch (e) {
+      console.log(e);
       setLoading(false);
       props.updateIds("programId", "storeId", false);
     }
@@ -146,15 +145,14 @@ export default function Dashboard(props) {
       );
       const ret = await response.json();
       setStores(ret.stores);
-      setProgramName(ret.programName);
+      if (programName !== ret.programName) setProgramName(ret.programName);
       setLoading(false);
     } catch (e) {}
   }
 
   useEffect(() => {
-    fetchStats().then((res) => {
-      fetchStores();
-    });
+    fetchStats();
+    fetchStores();
   }, []);
 
   const conversion = () => {

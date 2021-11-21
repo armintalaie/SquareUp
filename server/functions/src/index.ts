@@ -173,6 +173,8 @@ exports.leavePartnerProgram = functions.https.onRequest(async (req, res) => {
 async function deletePartnerProgram(programId: string) {
   console.log("deleting " + programId);
   await db.collection(programId).doc(META).delete();
+  await db.collection(programId).doc("Activities").delete();
+  return;
 }
 
 exports.customer = functions.https.onRequest(async (req, res) => {
@@ -374,6 +376,24 @@ export async function hasActiveLoyaltyProgram(client: Client) {
 async function checkForExisitingClients(id: string) {
   return await admin.firestore().collection(META).doc(id).get();
 }
+
+
+exports.isClientAcitve = functions.https.onRequest(async (req, res) => {
+
+  try {
+    const client: Client = new Client({ environment: Environment.Sandbox, accessToken: req.query.token as string });
+    const storeId = (await client.merchantsApi.retrieveMerchant("me")).result.merchant?.id;
+    const doc = (await db.collection(META).doc(storeId).get())
+    if (doc.exists) {
+      res.set({ 'Access-Control-Allow-Origin': '*' }).status(200).send({ storeId: storeId, programId: doc.data().programId });
+    } else {
+      res.set({ 'Access-Control-Allow-Origin': '*' }).sendStatus(400);
+    }
+  } catch (e) {
+    res.set({ 'Access-Control-Allow-Origin': '*' }).sendStatus(400);
+  }
+
+});
 
 
 export async function createSharedCustomerGroup(clients: Client[], partnerPorgramName: string ) {
