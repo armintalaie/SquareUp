@@ -3,8 +3,8 @@ import { ActionButton } from "../theme";
 import { useEffect, useState } from "react";
 import { theme } from "../App";
 import { useLocation } from "react-router-dom";
-import Setup from "./setup";
-import Dashboard from "./dashboard";
+import Setup from "../components/setup";
+import Dashboard from "../components/dashboard";
 
 export default function Home() {
   const [hasAccessToLoyalyProgram, setAccess] = useState(false);
@@ -34,12 +34,13 @@ export default function Home() {
 function HomePage(props) {
   const search = useLocation().search;
   const name = new URLSearchParams(search).get("code");
-  const [authorized, setAuthorized] = useState(true);
+  const [authorized, setAuthorized] = useState(false);
   let token = "";
 
   useEffect(() => {
     if (name) {
       authorize();
+      return;
     }
   }, []);
 
@@ -100,7 +101,7 @@ function HomePage(props) {
 
   return (
     <Container maxWidth="lg" className={theme.root}>
-      <Typography variant="h1"> SquareCircle </Typography>
+      <Typography variant="h1"> Circle </Typography>
       <Container maxWidth="lg">
         <Paper elevation={0.3} sx={{ bgcolor: "#F6F6F4" }}>
           <Box m={3} p={3} pb={2} pt={2} textAlign={"center"}>

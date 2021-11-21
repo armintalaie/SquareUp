@@ -6,26 +6,30 @@ import {
   Stack,
   Typography,
   TextField,
+  Divider,
 } from "@mui/material";
 import Dialog from "@mui/material/Dialog";
 import DialogActions from "@mui/material/DialogActions";
 import DialogContent from "@mui/material/DialogContent";
 import DialogContentText from "@mui/material/DialogContentText";
 import DialogTitle from "@mui/material/DialogTitle";
-import Tile from "../components/tile";
-import Label from "../components/label";
+import Tile from "./tile";
+import Label from "./label";
 import { useEffect, useState } from "react";
 import { ActionButton } from "../theme";
+import HelpIcon from "@mui/icons-material/Help";
 const API_LINK = "https://us-central1-square-4797a.cloudfunctions.net/";
 
 export default function Dashboard(props) {
+  const MAX_COUNT = 5;
   const [open, setOpen] = useState(false);
-  const programId = props.programId;
-  const storeId = props.storeId;
+  const [wantToLeave, setWantToleave] = useState(false);
+  const programId = props.programId ? props.programId : "MISSING PROGRAM ID";
+  const storeId = props.storeId ? props.storeId : "MISSING STORE ID";
   const [updateConversionbtn, setupdateConverisonbtn] = useState(false);
   const [conversions, setConversions] = useState(1);
-  const [programName, setProgramName] = useState("");
-  const [storeNames, setStores] = useState([]);
+  const [programName, setProgramName] = useState("Partner Program");
+  const [storeNames, setStores] = useState(["Store 1", "Store 2"]);
   const [stats, setStats] = useState({
     internalPointsRecieved: 0,
     externalPointsRecieved: 0,
@@ -37,9 +41,36 @@ export default function Dashboard(props) {
     setupdateConverisonbtn(false);
   }
   async function leaveProgram() {
-    // leave program
-    props.updateIds(programId, storeId, false);
+    try {
+      const response = await fetch(
+        API_LINK +
+          "fetchStores/?token=" +
+          localStorage.getItem("token") +
+          "&program=" +
+          programId +
+          "&storeId=" +
+          storeId
+      );
+
+      const ret = await response.json();
+      if (ret.status !== 200) return;
+      props.updateIds(programId, storeId, false);
+    } catch (e) {
+      props.updateIds(programId, storeId, false);
+    }
   }
+
+  const showInvite = () => {
+    if (storeNames.length >= MAX_COUNT) {
+      return <div></div>;
+    } else {
+      return (
+        <div onClick={handleClickOpen}>
+          <Label title="invite" isStore={false}></Label>
+        </div>
+      );
+    }
+  };
 
   const handleClickOpen = () => {
     setOpen(true);
@@ -50,43 +81,46 @@ export default function Dashboard(props) {
   };
 
   async function fetchStats() {
-    const response = await fetch(
-      API_LINK +
-        "fetchStats/?token=" +
-        localStorage.getItem("token") +
-        "&program=" +
-        programId +
-        "&storeId=" +
-        storeId
-    );
+    try {
+      const response = await fetch(
+        API_LINK +
+          "fetchStats/?token=" +
+          localStorage.getItem("token") +
+          "&program=" +
+          programId +
+          "&storeId=" +
+          storeId
+      );
 
-    const ret = await response.json();
+      const ret = await response.json();
 
-    const newStats = {
-      internalPointsRecieved: ret.InternalPointsRecieved,
-      externalPointsRecieved: ret.ExternalPointsRecieved,
-      internalPointsRedeemed: ret.InternalPointsRedeemed,
-      externalPointsRedeemed: ret.ExternalPointsRedeemed,
-    };
-    // get stores !!
+      const newStats = {
+        internalPointsRecieved: ret.InternalPointsRecieved,
+        externalPointsRecieved: ret.ExternalPointsRecieved,
+        internalPointsRedeemed: ret.InternalPointsRedeemed,
+        externalPointsRedeemed: ret.ExternalPointsRedeemed,
+      };
 
-    setConversions(ret.conversionRate);
-    setStats(newStats);
+      setConversions(ret.conversionRate);
+      setStats(newStats);
+    } catch (e) {}
   }
 
   async function fetchStores() {
-    const response = await fetch(
-      API_LINK +
-        "fetchStats/?token=" +
-        localStorage.getItem("token") +
-        "&program=" +
-        programId +
-        "&storeId=" +
-        storeId
-    );
-
-    const ret = await response.json();
-    setStores([]);
+    try {
+      const response = await fetch(
+        API_LINK +
+          "fetchStores/?token=" +
+          localStorage.getItem("token") +
+          "&program=" +
+          programId +
+          "&storeId=" +
+          storeId
+      );
+      const ret = await response.json();
+      setStores(ret.stores);
+      setProgramName(ret.programName);
+    } catch (e) {}
   }
 
   useEffect(() => {
@@ -98,8 +132,12 @@ export default function Dashboard(props) {
     if (updateConversionbtn) {
       return (
         <Container maxWidth="md" alignItems="center" justifyContent="center">
+          <Divider sx={{ m: 3 }} />
           <Stack direction="row" justifyContent="center" alignItems="center">
-            <Paper elevation={1} sx={{ width: "50rem", p: 4, m: 2 }}>
+            <Paper
+              elevation={0}
+              sx={{ width: "50rem", p: 4, m: 2, borderRadius: 5 }}
+            >
               <Typography variant="h3">
                 Set the conversion rate of external stores point to your
                 external points
@@ -113,10 +151,8 @@ export default function Dashboard(props) {
                 <TextField
                   sx={{ width: "5rem", height: "3rem", ml: 3, mr: 3 }}
                   id="outlined-number"
+                  InputProps={{ inputProps: { min: 1 }, shrink: true }}
                   type="number"
-                  InputLabelProps={{
-                    shrink: true,
-                  }}
                   onChange={(e) => {
                     setConversions(e.target.value);
                   }}
@@ -126,7 +162,7 @@ export default function Dashboard(props) {
               </Stack>
               <ActionButton
                 variant="contained"
-                color="secondary"
+                color="primary"
                 onClick={() => {
                   updateConversion();
                 }}
@@ -135,6 +171,7 @@ export default function Dashboard(props) {
               </ActionButton>
             </Paper>
           </Stack>
+          <Divider sx={{ m: 3 }} />
         </Container>
       );
     } else {
@@ -152,18 +189,17 @@ export default function Dashboard(props) {
         >
           Points Conversion
         </Button>
-        <Button
-          onClick={() => {
-            leaveProgram();
-          }}
-        >
+        <Button onClick={() => setWantToleave(true)}>
           Leave Partner Program
         </Button>
       </Stack>
 
       <Typography variant="h1">{programName}</Typography>
       {conversion()}
-      <Typography variant="h2">Loyalty Stats</Typography>
+      <Stack flexDirection="row" alignItems="center" justifyContent="center">
+        <Typography variant="h2">Loyalty Points</Typography>
+        <Help title="Loyalty Point Types" description=""></Help>
+      </Stack>
 
       <Container alignItems="center" justifyContent="center">
         <Box
@@ -196,17 +232,16 @@ export default function Dashboard(props) {
             />
           </Stack>
         </Box>
-        <Typography variant="h2">Participating Partners</Typography>
+        <Divider sx={{ m: 10 }} />
+        <Typography variant="h2">Circle of Partners</Typography>
         <Stack direction="row" sx={{ m: 3, p: 2 }} flexWrap="wrap">
           {storeNames.map((partner) => {
-            return <Label title={partner}></Label>;
+            return <Label title={partner} isStore={true}></Label>;
           })}
+          {showInvite()}
         </Stack>
 
         <div>
-          <Button variant="contained" size="large" onClick={handleClickOpen}>
-            Invite A Store
-          </Button>
           <Dialog
             open={open}
             onClose={handleClose}
@@ -238,8 +273,80 @@ export default function Dashboard(props) {
               </Button>
             </DialogActions>
           </Dialog>
+
+          <Dialog
+            open={wantToLeave}
+            onClose={() => setWantToleave(true)}
+            aria-labelledby="alert-dialog-title"
+            aria-describedby="alert-dialog-description"
+          >
+            <DialogTitle id="alert-dialog-title">{"Leave Program"}</DialogTitle>
+            <DialogContent>
+              <DialogContentText>
+                Are you sure you want to leave {programName} and delete your
+                account?
+              </DialogContentText>
+            </DialogContent>
+            <DialogActions>
+              <Button onClick={() => setWantToleave(false)}>No</Button>
+              <Button
+                onClick={() => {
+                  leaveProgram();
+                }}
+                autoFocus
+              >
+                Yes
+              </Button>
+            </DialogActions>
+          </Dialog>
         </div>
       </Container>
     </Container>
+  );
+}
+
+function Help({ title, description }) {
+  const [open, setOpen] = useState(false);
+
+  const dialog = () => {
+    return (
+      <Dialog
+        open={open}
+        onClose={() => setOpen(true)}
+        aria-labelledby="alert-dialog-title"
+        aria-describedby="alert-dialog-description"
+      >
+        <DialogTitle id="alert-dialog-title">Loyalty Point Types</DialogTitle>
+        <DialogContent>
+          <DialogContentText>
+            <Typography variant="h5">
+              <span style={{ fontWeight: "bold", paddingRight: "0.5rem" }}>
+                Instore:{" "}
+              </span>{" "}
+              points that are either awarded or redeemed through your store. For
+              example, when a customer buys something at your store
+            </Typography>
+            <Typography variant="h5">
+              <span style={{ fontWeight: "bold", paddingRight: "0.5rem" }}>
+                External:{" "}
+              </span>{" "}
+              points that are converted from either awarded or redeemed point
+              from partner stores; You can change the external conversion
+              points.
+            </Typography>
+          </DialogContentText>
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={() => setOpen(false)}>Close</Button>
+        </DialogActions>
+      </Dialog>
+    );
+  };
+
+  return (
+    <div>
+      <HelpIcon onClick={() => setOpen(true)}></HelpIcon>
+      {dialog()}
+    </div>
   );
 }
