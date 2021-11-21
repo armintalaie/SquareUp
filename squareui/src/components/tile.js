@@ -1,4 +1,4 @@
-import { Button, Paper, Container, Box, Stack } from "@mui/material";
+import { Paper, Box, Stack } from "@mui/material";
 import Typography from "@mui/material/Typography";
 
 export default function Tile(props) {

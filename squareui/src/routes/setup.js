@@ -1,13 +1,11 @@
-import { Paper, Container, Box, Typography, Stack } from "@mui/material";
+import { Container, Box, Typography, useThemeProps } from "@mui/material";
 import { ActionButton, FieldForm } from "../theme";
 import { useState } from "react";
 import { theme } from "../App";
-import * as Constants from "../constants/URL";
-import { useNavigate } from "react-router";
+import ArrowBackIcon from "@mui/icons-material/ArrowBack";
 
-export default function Setup() {
+export default function Setup(props) {
   console.log(localStorage.getItem("token"));
-  const navigate = useNavigate();
   const [form, setForm] = useState("");
   const CHOICES = { UNDECLARED: "undeclared", CREATE: "create", JOIN: "join" };
   const [choice, setChoice] = useState(CHOICES.UNDECLARED);
@@ -18,9 +16,8 @@ export default function Setup() {
   };
 
   async function joinProgram() {
-    //TODO: join program
     try {
-      console.log("join  + " + localStorage.getItem("token"));
+      console.log("join  + ");
       const response = await fetch(
         API_LINK +
           "joinPartnerProgram/?token=" +
@@ -28,28 +25,16 @@ export default function Setup() {
           "&program=" +
           form
       );
-      console.log(response);
       const ret = await response.json();
-      console.log(ret.stores);
-      navigate("/dashboard", {
-        state: {
-          program: ret.program,
-          stores: ret.stores,
-          partnerid: ret.partnerid,
-          storeId: ret.storeId,
-          conversationRate: ret.conversionRate,
-        },
-      });
-      console.log(ret);
+      useThemeProps.updateIds(ret.partnerid, ret.storeId, true);
     } catch (e) {
       console.log(e);
     }
   }
 
   async function createProgram() {
-    //TODO: create program
     try {
-      console.log("create  + " + localStorage.getItem("token"));
+      console.log("create  + ");
       const response = await fetch(
         API_LINK +
           "createPartnerProgram/?token=" +
@@ -57,18 +42,8 @@ export default function Setup() {
           "&program=" +
           form
       );
-      console.log(response);
       const ret = await response.json();
-      navigate("/dashboard", {
-        state: {
-          program: ret.program,
-          stores: ret.stores,
-          partnerid: ret.partnerid,
-          storeId: ret.storeId,
-          conversationRate: ret.conversionRate,
-        },
-      });
-      console.log(ret);
+      useThemeProps.updateIds(ret.partnerid, ret.storeId, true);
     } catch (e) {
       console.log(e);
     }
@@ -93,6 +68,18 @@ export default function Setup() {
     }
   }
 
+  const backButton = () => {
+    return (
+      <ArrowBackIcon
+        color="primary"
+        fontSize="large"
+        onClick={() => {
+          setChoice(CHOICES.UNDECLARED);
+        }}
+      />
+    );
+  };
+
   function setupCondition() {
     switch (choice) {
       case CHOICES.CREATE:
@@ -104,9 +91,10 @@ export default function Setup() {
             <Box
               display="flex"
               justify="flex-start"
-              alignItems="flex-start"
+              alignItems="center"
               flexDirection="row"
             >
+              {backButton()}
               <FieldForm
                 id="outlined-basic"
                 label="Program Name"
@@ -133,9 +121,10 @@ export default function Setup() {
             <Box
               display="flex"
               justify="flex-start"
-              alignItems="flex-start"
+              alignItems="center"
               flexDirection="row"
             >
+              {backButton()}
               <FieldForm
                 id="outlined-basic"
                 label="Program ID"
@@ -180,33 +169,7 @@ export default function Setup() {
   return (
     <div>
       <Container maxWidth="lg" className={theme.root}>
-        <Typography variant="h1"> Square Partners Program </Typography>
-        <h4> {form} </h4>{" "}
-        <Container maxWidth="md">
-          <Stack direction="row">
-            <Paper elevation={1} sx={{ m: 2, p: 3, ml: 0, bgcolor: "#F8F4DD" }}>
-              <Box m={3} ml={0} mr={0} p={1} textAlign={"left"}>
-                <Typography variant="h3"> How it works </Typography>
-                <Typography variant="h5">
-                  {" "}
-                  Partner with other Square stores to take your loyalty programs
-                  to a new leveleewng; lwgmnw; lgnw; lkgn;{" "}
-                </Typography>{" "}
-              </Box>{" "}
-            </Paper>{" "}
-            <Paper elevation={1} sx={{ m: 2, p: 3, mr: 0, bgcolor: "#F8F4DD" }}>
-              <Box m={3} ml={0} mr={0} p={1} textAlign={"left"}>
-                <Typography variant="h3"> How it works </Typography>
-                <Typography variant="h5">
-                  {" "}
-                  Partner with other Square stores to take your loyalty programs
-                  to a new level{" "}
-                </Typography>{" "}
-              </Box>{" "}
-            </Paper>{" "}
-          </Stack>{" "}
-          {setupCondition()}{" "}
-        </Container>{" "}
+        <Container maxWidth="md">{setupCondition()} </Container>{" "}
       </Container>{" "}
     </div>
   );

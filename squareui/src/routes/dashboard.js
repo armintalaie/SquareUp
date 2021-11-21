@@ -16,30 +16,16 @@ import Tile from "../components/tile";
 import Label from "../components/label";
 import { useEffect, useState } from "react";
 import { ActionButton } from "../theme";
-import { useNavigate, useLocation } from "react-router";
 const API_LINK = "https://us-central1-square-4797a.cloudfunctions.net/";
 
-export default function Dashaboard() {
-  const { state } = useLocation();
-  const { program, stores, partnerid, storeId, conversionRate } =
-    state == null
-      ? {
-          program: "N/A",
-          stores: [".....", ".....", ".....", ".....", "....."],
-          partnerid: "N/A",
-          id: "N/A",
-          conversionRate: 1,
-        }
-      : state;
-  console.log(storeId + "  " + program);
-  console.log(localStorage.getItem("token"));
-  const navigate = useNavigate();
+export default function Dashboard(props) {
+  const [open, setOpen] = useState(false);
+  const programId = props.programId;
+  const storeId = props.storeId;
   const [updateConversionbtn, setupdateConverisonbtn] = useState(false);
-  const [conversions, setConversions] = useState(conversionRate);
-  const [programName, setProgramName] = useState(program);
-  const [storeNames, setStores] = useState(stores);
-  const [partners, setPartners] = useState(["Nike", "Adidas"]);
-
+  const [conversions, setConversions] = useState(1);
+  const [programName, setProgramName] = useState("");
+  const [storeNames, setStores] = useState([]);
   const [stats, setStats] = useState({
     internalPointsRecieved: 0,
     externalPointsRecieved: 0,
@@ -50,11 +36,10 @@ export default function Dashaboard() {
     // submit conversions
     setupdateConverisonbtn(false);
   }
-
   async function leaveProgram() {
-    navigate("/");
+    // leave program
+    props.updateIds(programId, storeId, false);
   }
-  const [open, setOpen] = useState(false);
 
   const handleClickOpen = () => {
     setOpen(true);
@@ -65,21 +50,12 @@ export default function Dashaboard() {
   };
 
   async function fetchStats() {
-    console.log(
-      API_LINK +
-        "fetchStats/?token=" +
-        localStorage.getItem("token") +
-        "&program=" +
-        partnerid +
-        "&storeId=" +
-        storeId
-    );
     const response = await fetch(
       API_LINK +
         "fetchStats/?token=" +
         localStorage.getItem("token") +
         "&program=" +
-        partnerid +
+        programId +
         "&storeId=" +
         storeId
     );
@@ -92,16 +68,30 @@ export default function Dashaboard() {
       internalPointsRedeemed: ret.InternalPointsRedeemed,
       externalPointsRedeemed: ret.ExternalPointsRedeemed,
     };
-    console.log(newStats);
+    // get stores !!
 
     setConversions(ret.conversionRate);
     setStats(newStats);
   }
 
+  async function fetchStores() {
+    const response = await fetch(
+      API_LINK +
+        "fetchStats/?token=" +
+        localStorage.getItem("token") +
+        "&program=" +
+        programId +
+        "&storeId=" +
+        storeId
+    );
+
+    const ret = await response.json();
+    setStores([]);
+  }
+
   useEffect(() => {
-    console.log("ret");
-    // Update the document title using the browser API
     fetchStats();
+    fetchStores();
   });
 
   const conversion = () => {
@@ -239,7 +229,7 @@ export default function Dashaboard() {
                 </Typography>
               </Container>
               <Container sx={{ m: 2, p: 2 }}>
-                <Typography variant="h2">{partnerid}</Typography>
+                <Typography variant="h2">{programId}</Typography>
               </Container>
             </DialogContent>
             <DialogActions>
