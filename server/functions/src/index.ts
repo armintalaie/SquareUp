@@ -4,8 +4,6 @@ import * as crypto from "crypto";
 import { Client, Environment } from 'square';
 import { Activity, ClientDoc, ClientInfo, ProgramInfo, StoreMap } from "./model";
 import { SQUARE_API } from "./API";
-
-//import * as admin from 'firebase-admin';
 const admin = require('firebase-admin');
 admin.initializeApp();
 const db = admin.firestore();
@@ -15,8 +13,6 @@ const CLIENT_ID = functions.config().square != undefined ? functions.config().sq
 const CLIENTT_SECRET = functions.config().square != undefined? functions.config().square.client_secret: SQUARE_API.client_secret;
 
 const NOTIFICATION_URL = "EXAMPLE";
-
-
 const sigKey = "EXAMPLE";
 
 function isFromSquare(NOTIFICATION_URL, request, sigKey) {
@@ -27,8 +23,6 @@ function isFromSquare(NOTIFICATION_URL, request, sigKey) {
   return request.get("X-Square-Signature") === hash;
 }
 
-
-// TODO: clean up
 exports.createPartnerProgram = functions.https.onRequest(async (req, res) => {
 
   try {
@@ -64,7 +58,7 @@ exports.createPartnerProgram = functions.https.onRequest(async (req, res) => {
       await db.collection(newClient.programId).doc(newClient.storeId).set(clientDoc);
       await db.collection(newClient.programId).doc(META).set(newProgram);
       await db.collection(newClient.programId).doc("Activities").set(activities);
-      res.set({ 'Access-Control-Allow-Origin': '*' }).status(200).json({ program:  newProgram.programName, stores: newProgram.stores, partnerid: newProgram.id,  storeId: clientDoc.storeId});
+      res.set({ 'Access-Control-Allow-Origin': '*' }).status(200).json({ program:  newProgram.programName, stores: newProgram.stores, programId: newProgram.id,  storeId: clientDoc.storeId});
     };
    
   } catch (e) {
@@ -75,7 +69,6 @@ exports.createPartnerProgram = functions.https.onRequest(async (req, res) => {
 });
 
 
-// TODO: clean up
 exports.joinPartnerProgram = functions.https.onRequest(async (req, res) => {
   try {
     const ProgramId = req.query.program as string;
@@ -113,7 +106,7 @@ exports.joinPartnerProgram = functions.https.onRequest(async (req, res) => {
       const updated: ProgramInfo = { stores: stores, storeActivities: storeMap, storeCount: data.storeCount + 1, programName: data.programName as string, id: data.id};
       await db.collection(ProgramId).doc(META).set(updated);
 
-      res.set({ 'Access-Control-Allow-Origin': '*' }).status(200).json({ program:  doc.data().programName, stores: stores,partnerid:ProgramId , storeId: clientDoc.storeId});
+      res.set({ 'Access-Control-Allow-Origin': '*' }).status(200).json({ program:  doc.data().programName, stores: stores,programId:ProgramId , storeId: clientDoc.storeId});
     };
     } catch (e) {
     console.log(e);
@@ -123,8 +116,6 @@ exports.joinPartnerProgram = functions.https.onRequest(async (req, res) => {
 
 });
 
-
-// TODO: clean up
 exports.leavePartnerProgram = functions.https.onRequest(async (req, res) => {
 
   try {
@@ -147,6 +138,14 @@ exports.leavePartnerProgram = functions.https.onRequest(async (req, res) => {
     const programInfo: ProgramInfo = doc.data();
     const storeMap: StoreMap = programInfo.storeActivities;
     let newStoreMap: StoreMap = {};
+    const stores = programInfo.stores;
+    let newStore: string[]  = [];
+
+    stores.forEach((st) => {
+      if (st != merchant.result.merchant!.businessName)
+        newStore.push(st);
+    })
+ 
 
     for (const [key, value] of Object.entries(storeMap)) {
       if (key != storeId)
@@ -155,22 +154,20 @@ exports.leavePartnerProgram = functions.https.onRequest(async (req, res) => {
    
 
     console.log("updating database");
-    await db.collection(store.programId).doc(META).update({ storeCount: programInfo.storeCount - 1, storeActivities: newStoreMap });
+    await db.collection(store.programId).doc(META).update({ storeCount: programInfo.storeCount - 1, storeActivities: newStoreMap, stores: newStore });
     await db.collection(store.programId).doc(storeId).delete();
     await db.collection(META).doc(storeId).delete();
     if (programInfo.storeCount == 1) {
       deletePartnerProgram(programInfo.id);
     }
     
-    res.sendStatus(200);
+    res.set({ 'Access-Control-Allow-Origin': '*' }).sendStatus(200);
   } catch (error) {
     console.error(error);
-    res.sendStatus(400);
+    res.set({ 'Access-Control-Allow-Origin': '*' }).sendStatus(400);
   }
 
 });
-
-
 
 
 async function deletePartnerProgram(programId: string) {
@@ -191,8 +188,6 @@ exports.customer = functions.https.onRequest(async (req, res) => {
 });
 
 
-
-// FIXME: swap out webhook
 exports.updateLoyaltyforCustomer = functions.https.onRequest(async (req, res) => {
 
   const EVENT_TYPE =  {REDEEM:"REDEEM_REWARD", ACCUMULATE: "ACCUMULATE_POINTS"}
@@ -228,7 +223,6 @@ exports.updateLoyaltyforCustomer = functions.https.onRequest(async (req, res) =>
     res.status(400).send("NOT SUPPORTED EVENT TYPE");
     return;
   }
-
  
   updateDBPoints(merchant_id,  customerPoints, partnerProgramid , false);
   
@@ -238,8 +232,6 @@ exports.updateLoyaltyforCustomer = functions.https.onRequest(async (req, res) =>
   allStores.clients.forEach(currClient => {
     updateCustomer(currClient, customerNumber, customerPoints, programInfo.programName + ":" + allStores.callingBusiness + ":"+ loyaltyEventType);
   })
-  
-  
   res.set({ 'Access-Control-Allow-Origin': '*' }).status(200).send("ALL STORES HAVE BEEN UPDATED FOR CLIENT:" + customerNumber);
 
 })
@@ -307,7 +299,6 @@ async function findPartnerProgram(id: string) {
 }
 
 
-
 exports.authorize = functions.https.onRequest(async (req, res) => {
   const client: Client = new Client({ environment: Environment.Sandbox });
 
@@ -333,14 +324,12 @@ exports.authorize = functions.https.onRequest(async (req, res) => {
 exports.fetchStats = functions.https.onRequest(async (req, res) => {
   // program name
   try {
-    const storeToken = req.query.token;
     // program id
     const programId = req.query.program;
-    const storeId = req.query.storeId;
+    const storeId = req.query.storeId; 
     const data =  (await db.collection(programId).doc(storeId).get()).data();
-    if (data.storeToken == storeToken) {
-      res.set({ 'Access-Control-Allow-Origin': '*' }).status(200).json(data);
-    }
+   
+    res.set({ 'Access-Control-Allow-Origin': '*' }).status(200).json(data);
   } catch (e) {
     console.log(e);
     res.set({ 'Access-Control-Allow-Origin': '*' }).sendStatus(400);
@@ -348,6 +337,26 @@ exports.fetchStats = functions.https.onRequest(async (req, res) => {
 
 })
 
+exports.fetchStores = functions.https.onRequest(async (req, res) => {
+  try {
+    //const storeToken = req.query.token;
+    const programId = req.query.program;
+    const storeId = req.query.storeId;
+
+    const usersRef = (await db.collection(programId).doc(storeId)).get()
+
+    if (usersRef.exists) {
+      throw new Error("Program/Store Not found");
+      
+    }
+    const data =  (await db.collection(programId).doc(META).get()).data();
+    res.set({ 'Access-Control-Allow-Origin': '*' }).status(200).json({programName: data.programName, stores:data.stores});
+  } catch (e) {
+    console.log(e);
+    res.set({ 'Access-Control-Allow-Origin': '*' }).sendStatus(400);
+  }
+
+})
 
 
 // TODO:
@@ -368,7 +377,6 @@ async function checkForExisitingClients(id: string) {
 
 
 export async function createSharedCustomerGroup(clients: Client[], partnerPorgramName: string ) {
-    
   let result: any[] = [];
 
   try {
@@ -382,13 +390,9 @@ export async function createSharedCustomerGroup(clients: Client[], partnerPorgra
   
           await result.push(response.result.group?.id);
       }))
-
-      
       
   } catch (error) {
-    
     console.log(error);
-
   }
   
   return result;
@@ -403,12 +407,8 @@ export async function deleteSharedCustomerGroup(clients: Client[]) {
           const id: string = 'ss';
           await client.customerGroupsApi.deleteCustomerGroup(id);
       }))
-    
-
-      
     } catch(error) {
     console.log(error);
-
     }
   
 }
@@ -448,6 +448,8 @@ async function fetchStores(merchantId: string, programId: string, customerPoints
 }
 
 
+
+
 async function updateDBPoints(storeid: string, customerPoints: number, programId: string, isExternal: boolean) {
   let key: string = isExternal ? "External" : "Internal";
 
@@ -465,44 +467,29 @@ async function updateDBPoints(storeid: string, customerPoints: number, programId
  
 }
 
- // let activities: Activity = (await db.collection(programInfo.id).doc("Activities").get()).data();
 
-  // if (!activities.hasOwnProperty(customerNumber)) {
-  //  activities =  await createCustomerAcitivty(customerNumber, programInfo.storeActivities, programInfo.id);
-  // }
+exports.updateConversion = functions.https.onRequest(async (req, res) => {
 
-  // let storeMap: StoreMap = activities[customerNumber];
+  
+  try {
+    //const storeToken = req.query.token;
+    const programId = req.query.program;
+    const storeId = req.query.storeId;
+    const conversion = req.query.conversion;
 
-  // if (storeMap[merchant_id]) {
-  //   console.log("customer update is looped through - deleting activitie");
-  //   delete activities[customerNumber];
-  //   await db.collection(programInfo.id).doc("Activities").set(activities);
+    // const usersRef = (await db.collection(programId).doc(storeId)).get()
 
-  // } else {
+    // if (usersRef.exists) {
+    //   throw new Error("Program/Store Not found");
+      
+    // }
 
-  //   storeMap[merchant_id] = true;
-  //   for (const [key, value] of Object.entries(storeMap)) {
-  //     if (!value) {
-  //       storeMap[key] = true;
-  //       try {
-  //         const message = `modified customer loyaty points`;
-  //         console.log("fetching client to update " + key);
-  //         const token = (await db.collection(programInfo.id).doc(key).get()).data().storeToken;
-  //         activities[customerNumber] = storeMap;
-  //         await db.collection(programInfo.id).doc("Activities").set(activities);
-  //         console.log(token);
-  //         const client = new Client({
-  //           environment: Environment.Sandbox,
-  //           accessToken: token as string,
-  //         })
-  //         updateCustomer(client, customerNumber, customerPoints, message);
-
-  //       } catch (e) {
-  //         console.log(e);
-  //       }
-   
-  //       break;
-  //     }
-
-//     }
-// }
+    (await db.collection(programId).doc(storeId)).update({ conversionRate:conversion } )
+    
+     res.set({ 'Access-Control-Allow-Origin': '*' }).status(200);
+    
+  } catch (e) {
+    console.log(e);
+    res.set({ 'Access-Control-Allow-Origin': '*' }).sendStatus(400);
+  }
+})

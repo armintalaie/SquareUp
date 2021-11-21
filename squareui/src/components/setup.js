@@ -1,11 +1,12 @@
-import { Container, Box, Typography, useThemeProps } from "@mui/material";
+import { Container, Box, Typography } from "@mui/material";
 import { ActionButton, FieldForm } from "../theme";
 import { useState } from "react";
 import { theme } from "../App";
 import ArrowBackIcon from "@mui/icons-material/ArrowBack";
+import Loading from "./loading";
 
 export default function Setup(props) {
-  console.log(localStorage.getItem("token"));
+  const [isLoading, setLoading] = useState(false);
   const [form, setForm] = useState("");
   const CHOICES = { UNDECLARED: "undeclared", CREATE: "create", JOIN: "join" };
   const [choice, setChoice] = useState(CHOICES.UNDECLARED);
@@ -15,9 +16,17 @@ export default function Setup(props) {
     setForm(e.target.value);
   };
 
+  const needsLoader = () => {
+    if (isLoading) {
+      return <Loading />;
+    } else {
+      return <div></div>;
+    }
+  };
+
   async function joinProgram() {
     try {
-      console.log("join  + ");
+      console.log("join");
       const response = await fetch(
         API_LINK +
           "joinPartnerProgram/?token=" +
@@ -26,7 +35,10 @@ export default function Setup(props) {
           form
       );
       const ret = await response.json();
-      useThemeProps.updateIds(ret.partnerid, ret.storeId, true);
+      localStorage.setItem("programId", ret.programId);
+      localStorage.setItem("storeId", ret.storeId);
+      props.updateIds(ret.programId, ret.storeId, true);
+      setLoading(false);
     } catch (e) {
       console.log(e);
     }
@@ -34,7 +46,7 @@ export default function Setup(props) {
 
   async function createProgram() {
     try {
-      console.log("create  + ");
+      console.log("create");
       const response = await fetch(
         API_LINK +
           "createPartnerProgram/?token=" +
@@ -43,27 +55,30 @@ export default function Setup(props) {
           form
       );
       const ret = await response.json();
-      useThemeProps.updateIds(ret.partnerid, ret.storeId, true);
+      localStorage.setItem("programId", ret.programId);
+      localStorage.setItem("storeId", ret.storeId);
+      props.updateIds(ret.programId, ret.storeId, true);
+      setLoading(false);
     } catch (e) {
       console.log(e);
     }
   }
 
   async function triggerPartners() {
+    setLoading(true);
     console.log(`triggerPartners via ${choice}`);
     switch (choice) {
       case CHOICES.CREATE:
-        createProgram().then((res) => {
-          // navigate("/dashboard");
-        });
+        createProgram();
         return;
       case CHOICES.JOIN:
-        joinProgram().then((res) => {});
+        joinProgram();
         return;
       default:
-        console.error(
+        console.warn(
           "Shoould not attempt to trigger program call without specified action"
         );
+        setLoading(false);
         return;
     }
   }
@@ -145,6 +160,7 @@ export default function Setup(props) {
       default:
         return (
           <Container maxWidth="md" m={1} p={1} sx={{ mt: 4 }}>
+            {needsLoader()}
             <Typography variant="h6">
               Do you want to create a joint partner loyalty program or join an
               exisiting one{" "}

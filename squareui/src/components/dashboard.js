@@ -18,9 +18,11 @@ import Label from "./label";
 import { useEffect, useState } from "react";
 import { ActionButton } from "../theme";
 import HelpIcon from "@mui/icons-material/Help";
+import Loading from "./loading";
 const API_LINK = "https://us-central1-square-4797a.cloudfunctions.net/";
 
 export default function Dashboard(props) {
+  const [isLoading, setLoading] = useState(true);
   const MAX_COUNT = 5;
   const [open, setOpen] = useState(false);
   const [wantToLeave, setWantToleave] = useState(false);
@@ -36,27 +38,52 @@ export default function Dashboard(props) {
     internalPointsRedeemed: 0,
     externalPointsRedeemed: 0,
   });
+
+  const needsLoader = () => {
+    if (isLoading) {
+      return <Loading />;
+    } else {
+      return <div></div>;
+    }
+  };
+
   async function updateConversion() {
-    // submit conversions
     setupdateConverisonbtn(false);
-  }
-  async function leaveProgram() {
     try {
       const response = await fetch(
         API_LINK +
-          "fetchStores/?token=" +
+          "updateConversion/?token=" +
+          localStorage.getItem("token") +
+          "&program=" +
+          programId +
+          "&storeId=" +
+          storeId +
+          "&conversion=" +
+          conversions
+      );
+      // setupdateConverisonbtn(false);
+    } catch (e) {}
+  }
+
+  async function leavePartnerProgram() {
+    setLoading(true);
+    try {
+      const response = await fetch(
+        API_LINK +
+          "leavePartnerProgram/?token=" +
           localStorage.getItem("token") +
           "&program=" +
           programId +
           "&storeId=" +
           storeId
       );
-
       const ret = await response.json();
-      if (ret.status !== 200) return;
-      props.updateIds(programId, storeId, false);
+      localStorage.removeItem("token");
+      setLoading(false);
+      props.updateIds("programId", "storeId", false);
     } catch (e) {
-      props.updateIds(programId, storeId, false);
+      setLoading(false);
+      props.updateIds("programId", "storeId", false);
     }
   }
 
@@ -120,13 +147,15 @@ export default function Dashboard(props) {
       const ret = await response.json();
       setStores(ret.stores);
       setProgramName(ret.programName);
+      setLoading(false);
     } catch (e) {}
   }
 
   useEffect(() => {
-    fetchStats();
-    fetchStores();
-  });
+    fetchStats().then((res) => {
+      fetchStores();
+    });
+  }, []);
 
   const conversion = () => {
     if (updateConversionbtn) {
@@ -181,6 +210,7 @@ export default function Dashboard(props) {
 
   return (
     <Container maxWidth="800px">
+      {needsLoader()}
       <Stack direction="row" justifyContent="flex-end">
         <Button
           onClick={() => {
@@ -291,7 +321,7 @@ export default function Dashboard(props) {
               <Button onClick={() => setWantToleave(false)}>No</Button>
               <Button
                 onClick={() => {
-                  leaveProgram();
+                  leavePartnerProgram();
                 }}
                 autoFocus
               >

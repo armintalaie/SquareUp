@@ -5,11 +5,12 @@ import { theme } from "../App";
 import { useLocation } from "react-router-dom";
 import Setup from "../components/setup";
 import Dashboard from "../components/dashboard";
+import Loading from "../components/loading";
 
 export default function Home() {
   const [hasAccessToLoyalyProgram, setAccess] = useState(false);
-  const [programId, setProgramId] = useState(undefined);
-  const [storeId, setStoreId] = useState(undefined);
+  const [programId, setProgramId] = useState(localStorage.getItem("programId"));
+  const [storeId, setStoreId] = useState(localStorage.getItem("storeId"));
 
   function updateIds(programId, storeId, canShowDashboard) {
     setStoreId(storeId);
@@ -28,16 +29,27 @@ export default function Home() {
       );
     else return <HomePage updateIds={updateIds} />;
   };
+
   return <div>{showDashboard()}</div>;
 }
 
 function HomePage(props) {
+  const [isLoading, setLoading] = useState(false);
   const search = useLocation().search;
   const name = new URLSearchParams(search).get("code");
   const [authorized, setAuthorized] = useState(false);
   let token = "";
 
   useEffect(() => {
+    if (localStorage.getItem(token) != undefined) {
+      props.updateIds(
+        localStorage.getItem("programId"),
+        localStorage.getItem("storeId"),
+        true
+      );
+      return;
+    }
+
     if (name) {
       authorize();
       return;
@@ -60,7 +72,16 @@ function HomePage(props) {
     scope.join("+") +
     "&session=False&state=82201dd8d83d23cc8a48caf52b";
 
+  const needsLoader = () => {
+    if (isLoading) {
+      return <Loading />;
+    } else {
+      return <div></div>;
+    }
+  };
+
   async function authorize() {
+    setLoading(true);
     try {
       const resp = await fetch(
         "https://us-central1-square-4797a.cloudfunctions.net/authorize/?code=" +
@@ -74,6 +95,7 @@ function HomePage(props) {
       } else {
         setAuthorized(false);
       }
+      setLoading(false);
     } catch (e) {
       console.log(e);
     }
@@ -102,8 +124,9 @@ function HomePage(props) {
   return (
     <Container maxWidth="lg" className={theme.root}>
       <Typography variant="h1"> Circle </Typography>
+      {needsLoader()}
       <Container maxWidth="lg">
-        <Paper elevation={0.3} sx={{ bgcolor: "#F6F6F4" }}>
+        <Paper elevation={0} sx={{ bgcolor: "#F6F6F4" }}>
           <Box m={3} p={3} pb={2} pt={2} textAlign={"center"}>
             <Typography variant="h2" sx={{ color: "#4A6D7C", fontSize: 24 }}>
               Partner with other Square stores to take your loyalty programs to
