@@ -15,7 +15,7 @@
 - By creating an enhanced loyalty program, you can give a customer more options to redeem their points
 - A shared Loyalty system will encourage a customer to return to your store
 - By bringing in more stores, customers will redeem their points from multiple stores, rahter than redeeming it all from your store
-- It can iincetivize small businesses to compete with large corporations with various stores
+- It can incentivize small businesses to compete with large corporations with various stores
 
 
 
@@ -73,7 +73,7 @@ Under the hood, Circle uses
 - Square's **MerchantsAPI**, **LoyaltyAPI**, **CustomersAPI**, **oAuthAPI**
 - **Firebase**'s **Cloud functions** for the backend written in **Typescript**
 - **Firebase**'s **Firestore** as a databse to store and fetch data relevant to the programs and sellers
-- A **React** Client and **MaterialUI** for the web application
+- A **React** Client and **MaterialUI** for the web application hosted on Firebase
 <hr>
 
 
