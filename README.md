@@ -1,8 +1,8 @@
-# CIRCLE - An application for Square ;)
+# Inner Circle - An application for Square ;)
 
 
 
-#### Circle ⭕️ uses Square's native Loyalty services to create an enhanced group loyalty program while mainitaining each store's individual loyalties. 
+#### Inner Circle ⭕️ uses Square's native Loyalty services to create an enhanced group loyalty program while mainitaining each store's individual loyalties. 
 
 
 [using this app as a client](#for-the-user)
@@ -14,8 +14,8 @@
 
 - By creating an enhanced loyalty program, you can give a customer more options to redeem their points
 - A shared Loyalty system will encourage a customer to return to your store
-- By bringing in more stores, customers will redeem their points from multiple stores, rahter than redeeming it all from your store
-- It can incentivize small businesses to compete with large corporations with various stores
+- By bringing in more stores, customers will redeem their points from multiple stores, rather than redeeming it all from your store
+- It can provide incentive to small businesses to compete with large corporations with various stores
 
 
 
@@ -39,7 +39,7 @@
 
 ###### Step 1: Authorizing Circle
 
-- easily authorize Circle with a few clicks to enroll
+- easily authorize Circle with a few clicks to enrol
 
 
 
@@ -72,7 +72,7 @@ after step 2, you can view your loyalty statistics from the app:
 Under the hood, Circle uses
 - Square's **MerchantsAPI**, **LoyaltyAPI**, **CustomersAPI**, **oAuthAPI**
 - **Firebase**'s **Cloud functions** for the backend written in **Typescript**
-- **Firebase**'s **Firestore** as a databse to store and fetch data relevant to the programs and sellers
+- **Firebase**'s **Firestore** as a database to store and fetch data relevant to the programs and sellers
 - A **React** Client and **MaterialUI** for the web application hosted on Firebase
 <hr>
 
@@ -157,7 +157,7 @@ Each Program Collection contains:
 
    - Then it uses the **CutomersAPI** to find the customer with the matching number and if found their loyalty account id
 
-   - using **LoyaltyAPI's** adjust points, Circle increments or decrements the customer's point for the other stores based on the conversion ration for each store and set a message to track for each seller
+   - using **LoyaltyAPI's** adjust points, Circle increments or decrements the customer's point for the other stores based on the conversion ratio for each store and set a message to track for each seller
    - Lastly, will update firestore with the changed points
 
 
